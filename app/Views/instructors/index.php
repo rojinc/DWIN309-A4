@@ -15,17 +15,17 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($instructors)): ?>
                 <tr><td colspan="6">No instructors recorded.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($instructors as $instructor): ?>
                     <tr>
-                        <td><?= e(['first_name'] . ' ' . ['last_name']); ?></td>
-                        <td><?= e(['email']); ?></td>
-                        <td><?= e(['branch_name']); ?></td>
-                        <td><?= e(['lesson_count']); ?></td>
-                        <td><?= e(['completed_lessons']); ?></td>
-                        <td><a class="button button-small" href="<?= route('instructors', 'view', ['id' => ['id']]); ?>">View</a></td>
+                        <td><?= e($instructor['first_name'] . ' ' . $instructor['last_name']); ?></td>
+                        <td><?= e($instructor['email'] ?? ''); ?></td>
+                        <td><?= e($instructor['branch_name'] ?? ''); ?></td>
+                        <td><?= e($instructor['lesson_count'] ?? 0); ?></td>
+                        <td><?= e($instructor['completed_lessons'] ?? 0); ?></td>
+                        <td><a class="button button-small" href="<?= route('instructors', 'view', ['id' => $instructor['id']]); ?>">View</a></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

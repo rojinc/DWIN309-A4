@@ -1,7 +1,7 @@
 <section class="card">
     <h1>Send Communication</h1>
     <form method="post" action="<?= route('communications', 'store'); ?>" class="form-grid">
-        <input type="hidden" name="csrf_token" value="<?= e(); ?>">
+        <input type="hidden" name="csrf_token" value="<?= e($csrfToken); ?>">
         <label>
             <span>Channel</span>
             <select name="channel" required>
@@ -29,8 +29,10 @@
         <label class="full-width">
             <span>Recipients</span>
             <select name="recipients[]" multiple size="8" required>
-                <?php foreach ( as ): ?>
-                    <option value="<?= e(['id']); ?>"><?= e(['first_name'] . ' ' . ['last_name'] . ' (' . ['role'] . ')'); ?></option>
+                <?php foreach ($users as $user): ?>
+                    <option value="<?= e($user['id']); ?>">
+                        <?= e($user['first_name'] . ' ' . $user['last_name'] . ' (' . $user['role'] . ')'); ?>
+                    </option>
                 <?php endforeach; ?>
             </select>
             <small>Hold Ctrl/Cmd to select multiple users.</small>

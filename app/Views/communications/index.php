@@ -14,16 +14,16 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($communications)): ?>
                 <tr><td colspan="5">No communications recorded.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($communications as $communication): ?>
                     <tr>
-                        <td><?= e(date('d M Y H:i', strtotime(['created_at']))); ?></td>
-                        <td><?= e(strtoupper(['channel'])); ?></td>
-                        <td><?= e(['subject']); ?></td>
-                        <td><?= e(['sender_name'] ?? 'System'); ?></td>
-                        <td><?= e(ucfirst(['audience_scope'])); ?></td>
+                        <td><?= e(date('d M Y H:i', strtotime($communication['created_at']))); ?></td>
+                        <td><?= e(strtoupper($communication['channel'])); ?></td>
+                        <td><?= e($communication['subject'] ?? '(No subject)'); ?></td>
+                        <td><?= e($communication['sender_name'] ?? 'System'); ?></td>
+                        <td><?= e(ucfirst($communication['audience_scope'] ?? 'selected')); ?></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

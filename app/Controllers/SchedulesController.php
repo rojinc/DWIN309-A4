@@ -18,13 +18,14 @@ use App\Services\AuditService;
  */
 class SchedulesController extends Controller
 {
-    private ScheduleModel ;
-    private EnrollmentModel ;
-    private InstructorModel ;
-    private VehicleModel ;
-    private BranchModel ;
-    private ReminderService ;
-    private AuditService ;
+    private ScheduleModel $schedules;
+    private EnrollmentModel $enrollments;
+    private InstructorModel $instructors;
+    private VehicleModel $vehicles;
+    private BranchModel $branches;
+    private StudentModel $students;
+    private ReminderService $reminders;
+    private AuditService $audit;
 
     /**
      * Prepares schedule controller dependencies.
@@ -32,13 +33,14 @@ class SchedulesController extends Controller
     public function __construct()
     {
         parent::__construct();
-        ->schedules = new ScheduleModel();
-        ->enrollments = new EnrollmentModel();
-        ->instructors = new InstructorModel();
-        ->vehicles = new VehicleModel();
-        ->branches = new BranchModel();
-        ->reminders = new ReminderService();
-        ->audit = new AuditService();
+        $this->schedules = new ScheduleModel();
+        $this->enrollments = new EnrollmentModel();
+        $this->instructors = new InstructorModel();
+        $this->vehicles = new VehicleModel();
+        $this->branches = new BranchModel();
+        $this->students = new StudentModel();
+        $this->reminders = new ReminderService();
+        $this->audit = new AuditService();
     }
 
     /**
@@ -46,22 +48,22 @@ class SchedulesController extends Controller
      */
     public function indexAction(): void
     {
-        ->requireRole(['admin', 'staff', 'instructor']);
-         = isset(['year']) ? (int) ['year'] : (int) date('Y');
-         = isset(['month']) ? (int) ['month'] : (int) date('n');
-         = ->auth->user();
-         = in_array(['role'], ['admin', 'staff'], true);
+        $this->requireRole(['admin', 'staff', 'instructor']);
+        $year = isset($_GET['year']) ? (int) $_GET['year'] : (int) date('Y');
+        $month = isset($_GET['month']) ? (int) $_GET['month'] : (int) date('n');
+        $user = $this->auth->user();
+        $canManage = in_array($user['role'], ['admin', 'staff'], true);
 
-        ->render('schedules/index', [
+        $this->render('schedules/index', [
             'pageTitle' => 'Scheduling Calendar',
-            'year' => ,
-            'month' => ,
-            'canManage' => ,
-            'enrollments' =>  ? ->enrollments->all() : [],
-            'instructors' =>  ? ->instructors->all() : [],
-            'vehicles' =>  ? ->vehicles->all() : [],
-            'branches' =>  ? ->branches->all() : [],
-            'csrfAjaxToken' =>  ? Csrf::token('schedule_ajax') : null,
+            'year' => $year,
+            'month' => $month,
+            'canManage' => $canManage,
+            'enrollments' => $canManage ? $this->enrollments->all() : [],
+            'instructors' => $canManage ? $this->instructors->all() : [],
+            'vehicles' => $canManage ? $this->vehicles->all() : [],
+            'branches' => $canManage ? $this->branches->all() : [],
+            'csrfAjaxToken' => $canManage ? Csrf::token('schedule_ajax') : null,
         ]);
     }
 
@@ -70,15 +72,15 @@ class SchedulesController extends Controller
      */
     public function createAction(): void
     {
-        ->requireRole(['admin', 'staff']);
-         = Csrf::token('schedule_create');
-        ->render('schedules/create', [
+        $this->requireRole(['admin', 'staff']);
+        $token = Csrf::token('schedule_create');
+        $this->render('schedules/create', [
             'pageTitle' => 'Book Lesson',
-            'enrollments' => ->enrollments->all(),
-            'instructors' => ->instructors->all(),
-            'vehicles' => ->vehicles->all(),
-            'branches' => ->branches->all(),
-            'csrfToken' => ,
+            'enrollments' => $this->enrollments->all(),
+            'instructors' => $this->instructors->all(),
+            'vehicles' => $this->vehicles->all(),
+            'branches' => $this->branches->all(),
+            'csrfToken' => $token,
         ]);
     }
 
@@ -87,75 +89,78 @@ class SchedulesController extends Controller
      */
     public function storeAction(): void
     {
-        ->requireRole(['admin', 'staff']);
-        if (['REQUEST_METHOD'] !== 'POST') {
-            ->redirect(route('schedules', 'index'));
+        $this->requireRole(['admin', 'staff']);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect(route('schedules', 'index'));
         }
         if (!Csrf::verify('schedule_create', post('csrf_token'))) {
-            ->flash('error', 'Security token mismatch.');
-            ->redirect(route('schedules', 'create'));
+            $this->flash('error', 'Security token mismatch.');
+            $this->redirect(route('schedules', 'create'));
         }
-         = Validation::make(, [
+
+        $validation = Validation::make($_POST, [
             'enrollment_id' => ['required'],
             'instructor_id' => ['required'],
             'scheduled_date' => ['required', 'date'],
             'start_time' => ['required', 'time'],
             'end_time' => ['required', 'time'],
         ]);
-        if (['errors']) {
-            ->flash('error', implode(' ', ['errors']));
-            ->redirect(route('schedules', 'create'));
+        if ($validation['errors']) {
+            $this->flash('error', implode(' ', $validation['errors']));
+            $this->redirect(route('schedules', 'create'));
         }
-         = ['data'];
+
+        $data = $validation['data'];
         try {
-             = ->schedules->create([
-                'enrollment_id' => (int) ['enrollment_id'],
-                'instructor_id' => (int) ['instructor_id'],
+            $scheduleId = $this->schedules->create([
+                'enrollment_id' => (int) $data['enrollment_id'],
+                'instructor_id' => (int) $data['instructor_id'],
                 'vehicle_id' => post('vehicle_id') ? (int) post('vehicle_id') : null,
                 'branch_id' => post('branch_id') ? (int) post('branch_id') : null,
                 'event_type' => post('event_type', 'lesson'),
-                'scheduled_date' => ['scheduled_date'],
-                'start_time' => ['start_time'],
-                'end_time' => ['end_time'],
+                'scheduled_date' => $data['scheduled_date'],
+                'start_time' => $data['start_time'],
+                'end_time' => $data['end_time'],
                 'status' => post('status', 'scheduled'),
                 'lesson_topic' => post('lesson_topic'),
                 'notes' => post('notes'),
                 'reminder_sent' => 0,
             ]);
-        } catch (\RuntimeException ) {
-            ->flash('error', ->getMessage());
-            ->redirect(route('schedules', 'create'));
+        } catch (\RuntimeException $exception) {
+            $this->flash('error', $exception->getMessage());
+            $this->redirect(route('schedules', 'create'));
         }
 
-         = ->resolveStudentUserId((int) ['enrollment_id']);
-        if () {
-            ->reminders->queue([
+        $studentUserId = $this->resolveStudentUserId((int) $data['enrollment_id']);
+        if ($studentUserId) {
+            $this->reminders->queue([
                 'related_type' => 'schedule',
-                'related_id' => ,
-                'recipient_user_id' => ,
+                'related_id' => $scheduleId,
+                'recipient_user_id' => $studentUserId,
                 'channel' => 'sms',
                 'reminder_type' => 'Upcoming Lesson',
-                'message' => 'Lesson booked for ' . date('d M Y', strtotime(['scheduled_date'])) . ' at ' . ['start_time'],
-                'send_on' => date('Y-m-d', strtotime(['scheduled_date'] . ' -1 day')),
+                'message' => 'Lesson booked for ' . date('d M Y', strtotime($data['scheduled_date'])) . ' at ' . $data['start_time'],
+                'send_on' => date('Y-m-d', strtotime($data['scheduled_date'] . ' -1 day')),
                 'status' => 'pending',
             ]);
         }
-        ->audit->log(->auth->user()['id'] ?? null, 'schedule_created', 'schedule', );
-        ->flash('success', 'Lesson scheduled successfully.');
-        ->redirect(route('schedules', 'index'));
+
+        $this->audit->log($this->auth->user()['id'] ?? null, 'schedule_created', 'schedule', $scheduleId);
+        $this->flash('success', 'Lesson scheduled successfully.');
+        $this->redirect(route('schedules', 'index'));
     }
 
     /**
      * Helper to find the student user id for reminder delivery.
      */
-    private function resolveStudentUserId(int ): int
+    private function resolveStudentUserId(int $enrollmentId): int
     {
-         = ->enrollments->find();
-        if (!) {
+        $enrollment = $this->enrollments->find($enrollmentId);
+        if (!$enrollment) {
             return 0;
         }
-         = new StudentModel();
-         = ->find((int) ['student_id']);
-        return (int) (['user_id'] ?? 0);
+
+        $student = $this->students->find((int) ($enrollment['student_id'] ?? 0));
+        return (int) ($student['user_id'] ?? 0);
     }
 }

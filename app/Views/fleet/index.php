@@ -15,17 +15,17 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($vehicles)): ?>
                 <tr><td colspan="6">No vehicles recorded.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($vehicles as $vehicle): ?>
                     <tr>
-                        <td><?= e(['name']); ?></td>
-                        <td><?= e(['type']); ?></td>
-                        <td><?= e(['plate_number']); ?></td>
-                        <td><?= e(['branch_name']); ?></td>
-                        <td><?= e(ucfirst(['status'])); ?></td>
-                        <td><?= e(['upcoming_assignments']); ?></td>
+                        <td><?= e($vehicle['name']); ?></td>
+                        <td><?= e($vehicle['type'] ?? ''); ?></td>
+                        <td><?= e($vehicle['plate_number'] ?? ''); ?></td>
+                        <td><?= e($vehicle['branch_name'] ?? ''); ?></td>
+                        <td><?= e(ucfirst($vehicle['status'] ?? 'unknown')); ?></td>
+                        <td><?= e($vehicle['upcoming_assignments'] ?? 0); ?></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

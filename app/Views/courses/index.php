@@ -15,17 +15,17 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($courses)): ?>
                 <tr><td colspan="6">No courses available.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($courses as $course): ?>
                     <tr>
-                        <td><?= e(['title']); ?></td>
-                        <td><?= e(['category']); ?></td>
-                        <td>$<?= e(number_format(['price'], 2)); ?></td>
-                        <td><?= e(['lesson_count']); ?></td>
-                        <td><?= e(['active_students']); ?></td>
-                        <td><?= e(ucfirst(['status'])); ?></td>
+                        <td><?= e($course['title']); ?></td>
+                        <td><?= e($course['category'] ?? ''); ?></td>
+                        <td>$<?= e(number_format((float) ($course['price'] ?? 0), 2)); ?></td>
+                        <td><?= e($course['lesson_count'] ?? 0); ?></td>
+                        <td><?= e($course['active_students'] ?? 0); ?></td>
+                        <td><?= e(ucfirst($course['status'] ?? 'inactive')); ?></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

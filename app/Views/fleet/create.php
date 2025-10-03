@@ -1,7 +1,7 @@
 <section class="card">
     <h1>Add Fleet Vehicle</h1>
     <form method="post" action="<?= route('fleet', 'store'); ?>" class="form-grid">
-        <input type="hidden" name="csrf_token" value="<?= e(); ?>">
+        <input type="hidden" name="csrf_token" value="<?= e($csrfToken); ?>">
         <label>
             <span>Vehicle name</span>
             <input type="text" name="name" required>
@@ -29,8 +29,8 @@
             <span>Branch</span>
             <select name="branch_id">
                 <option value="">Assign branch</option>
-                <?php foreach ( as ): ?>
-                    <option value="<?= e(['id']); ?>"><?= e(['name']); ?></option>
+                <?php foreach ($branches as $branch): ?>
+                    <option value="<?= e($branch['id']); ?>"><?= e($branch['name']); ?></option>
                 <?php endforeach; ?>
             </select>
         </label>

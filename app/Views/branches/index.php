@@ -14,16 +14,16 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($branches)): ?>
                 <tr><td colspan="5">No branches configured.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($branches as $branch): ?>
                     <tr>
-                        <td><?= e(['name']); ?></td>
-                        <td><?= e(['address']); ?>, <?= e(['city']); ?> <?= e(['state']); ?> <?= e(['postcode']); ?></td>
-                        <td><?= e(['phone']); ?></td>
-                        <td><?= e(['email']); ?></td>
-                        <td><?= e(['manager_name']); ?></td>
+                        <td><?= e($branch['name']); ?></td>
+                        <td><?= e($branch['address'] ?? ''); ?><?= $branch['city'] ? ', ' . e($branch['city']) : ''; ?><?= $branch['state'] ? ' ' . e($branch['state']) : ''; ?><?= $branch['postcode'] ? ' ' . e($branch['postcode']) : ''; ?></td>
+                        <td><?= e($branch['phone'] ?? ''); ?></td>
+                        <td><?= e($branch['email'] ?? ''); ?></td>
+                        <td><?= e($branch['manager_name'] ?? ''); ?></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
