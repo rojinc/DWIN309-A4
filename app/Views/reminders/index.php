@@ -15,17 +15,18 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($reminders)): ?>
                 <tr><td colspan="6">No reminders queued.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($reminders as $reminder): ?>
+                    <?php $sendDate = !empty($reminder['send_on']) ? date('d M Y', strtotime($reminder['send_on'])) : ''; ?>
                     <tr>
-                        <td><?= e(['reminder_type']); ?></td>
-                        <td><?= e(['recipient_user_id']); ?></td>
-                        <td><?= e(strtoupper(['channel'])); ?></td>
-                        <td><?= e(date('d M Y', strtotime(['send_on']))); ?></td>
-                        <td><?= e(ucfirst(['status'])); ?></td>
-                        <td><?= e(['message']); ?></td>
+                        <td><?= e($reminder['reminder_type'] ?? ''); ?></td>
+                        <td><?= e($reminder['recipient_user_id'] ?? ''); ?></td>
+                        <td><?= e(strtoupper($reminder['channel'] ?? '')); ?></td>
+                        <td><?= e($sendDate); ?></td>
+                        <td><?= e(ucfirst($reminder['status'] ?? 'pending')); ?></td>
+                        <td><?= e($reminder['message'] ?? ''); ?></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

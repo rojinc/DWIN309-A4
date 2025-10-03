@@ -5,7 +5,7 @@
             <form method="get" action="<?= route('students'); ?>" class="inline-form">
                 <input type="hidden" name="page" value="students">
                 <input type="hidden" name="action" value="index">
-                <input type="search" name="q" value="<?= e(); ?>" placeholder="Search students">
+                <input type="search" name="q" value="<?= e($search ?? ''); ?>" placeholder="Search students">
                 <button class="button button-secondary" type="submit">Search</button>
             </form>
             <a class="button" href="<?= route('students', 'create'); ?>">Add Student</a>
@@ -23,17 +23,17 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($students)): ?>
                 <tr><td colspan="6">No students found.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($students as $student): ?>
                     <tr>
-                        <td><?= e(['first_name'] . ' ' . ['last_name']); ?></td>
-                        <td><?= e(['email']); ?></td>
-                        <td><?= e(['phone']); ?></td>
-                        <td><?= e(['branch_name']); ?></td>
-                        <td><?= e(['license_status']); ?></td>
-                        <td><a class="button button-small" href="<?= route('students', 'view', ['id' => ['id']]); ?>">View</a></td>
+                        <td><?= e(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? '')); ?></td>
+                        <td><?= e($student['email'] ?? ''); ?></td>
+                        <td><?= e($student['phone'] ?? ''); ?></td>
+                        <td><?= e($student['branch_name'] ?? ''); ?></td>
+                        <td><?= e($student['license_status'] ?? ''); ?></td>
+                        <td><a class="button button-small" href="<?= route('students', 'view', ['id' => $student['id']]); ?>">View</a></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

@@ -207,7 +207,8 @@ class ScheduleModel extends Model
         $stmt->execute($params);
         $row = $stmt->fetch();
         return (int) ($row['total'] ?? 0) > 0;
-    }
+    }
+
     /**
      * Checks whether an instructor has any schedules with the specified student.
      */
@@ -225,4 +226,8 @@ class ScheduleModel extends Model
         $row = $stmt->fetch();
         return (int) ($row['total'] ?? 0) > 0;
     }
+
+}
+
+
 

@@ -14,19 +14,20 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($staff)): ?>
                 <tr><td colspan="5">No staff accounts created.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($staff as $member): ?>
                     <tr>
-                        <td><?= e(['first_name'] . ' ' . ['last_name']); ?></td>
-                        <td><?= e(['email']); ?></td>
-                        <td><?= e(['branch_name']); ?></td>
-                        <td><?= e(['position_title']); ?></td>
-                        <td><?= e(date('d M Y', strtotime(['start_date']))); ?></td>
+                        <td><?= e(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')); ?></td>
+                        <td><?= e($member['email'] ?? ''); ?></td>
+                        <td><?= e($member['branch_name'] ?? ''); ?></td>
+                        <td><?= e($member['position_title'] ?? ''); ?></td>
+                        <td><?= !empty($member['start_date']) ? e(date('d M Y', strtotime($member['start_date']))) : 'N/A'; ?></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
     </table>
 </section>
+

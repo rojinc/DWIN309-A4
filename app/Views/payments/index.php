@@ -11,16 +11,17 @@
             </tr>
         </thead>
         <tbody>
-            <?php if (empty()): ?>
+            <?php if (empty($payments)): ?>
                 <tr><td colspan="5">No payments recorded.</td></tr>
             <?php else: ?>
-                <?php foreach ( as ): ?>
+                <?php foreach ($payments as $payment): ?>
+                    <?php $formattedDate = !empty($payment['payment_date']) ? date('d M Y', strtotime($payment['payment_date'])) : ''; ?>
                     <tr>
-                        <td><?= e(['invoice_number']); ?></td>
-                        <td><?= e(date('d M Y', strtotime(['payment_date']))); ?></td>
-                        <td>$<?= e(number_format(['amount'], 2)); ?></td>
-                        <td><?= e(['method']); ?></td>
-                        <td><?= e(['reference']); ?></td>
+                        <td><?= e($payment['invoice_number'] ?? ''); ?></td>
+                        <td><?= e($formattedDate); ?></td>
+                        <td>$<?= e(number_format((float) ($payment['amount'] ?? 0), 2)); ?></td>
+                        <td><?= e($payment['method'] ?? ''); ?></td>
+                        <td><?= e($payment['reference'] ?? ''); ?></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
