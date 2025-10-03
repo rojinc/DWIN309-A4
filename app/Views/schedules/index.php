@@ -11,6 +11,10 @@ $courses = $courses ?? [];
 $instructors = $instructors ?? [];
 $vehicles = $vehicles ?? [];
 $branches = $branches ?? [];
+$canRate = $canRate ?? false;
+$instructorId = $instructorId ?? 0;
+$statusCsrfToken = $statusCsrfToken ?? null;
+$statusEndpoint = route('apischedules', 'updateStatus');
 ?>
 <section class="card schedule-dashboard"
         data-year="<?= e($year); ?>"
@@ -18,7 +22,11 @@ $branches = $branches ?? [];
         data-events-endpoint="<?= e(route('apischedules', 'events')); ?>"
         data-conflict-endpoint="<?= e(route('apischedules', 'checkConflict')); ?>"
         data-create-endpoint="<?= e(route('apischedules', 'create')); ?>"
+        data-status-endpoint="<?= e($statusEndpoint); ?>"
+        data-status-csrf="<?= e($statusCsrfToken ?? ''); ?>"
         data-can-manage="<?= $canManage ? '1' : '0'; ?>"
+        data-can-rate="<?= $canRate ? '1' : '0'; ?>"
+        data-instructor-id="<?= e((string) $instructorId); ?>"
         data-csrf="<?= e($csrfAjaxToken ?? ''); ?>">
     <div class="card-header schedule-header">
         <div>
@@ -135,6 +143,41 @@ $branches = $branches ?? [];
                 <button type="button" class="button button-secondary" id="schedule-modal-cancel">Cancel</button>
             </div>
             <p class="form-hint" id="schedule-conflict-message" hidden></p>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+<?php if ($canRate): ?>
+<div class="modal" id="schedule-status-modal" role="dialog" aria-modal="true" aria-labelledby="schedule-status-title" hidden>
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2 id="schedule-status-title">Update Lesson Outcome</h2>
+            <button type="button" class="modal-close" id="schedule-status-close" aria-label="Close">&times;</button>
+        </header>
+        <form id="schedule-status-form" class="form-grid">
+            <input type="hidden" name="csrf_token" value="<?= e($statusCsrfToken ?? ''); ?>">
+            <input type="hidden" name="schedule_id" value="">
+            <p class="form-hint" id="schedule-status-summary"></p>
+            <label>
+                <span>Status</span>
+                <select name="status" required>
+                    <option value="completed">Completed</option>
+                    <option value="not_completed">Not completed</option>
+                </select>
+            </label>
+            <label>
+                <span>Rating (/10)</span>
+                <input type="number" name="student_rating" min="0" max="10" step="1" placeholder="Optional">
+            </label>
+            <label class="full-width">
+                <span>Instructor remarks</span>
+                <textarea name="student_feedback" rows="3" placeholder="Optional notes"></textarea>
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="button">Save</button>
+                <button type="button" class="button button-secondary" id="schedule-status-cancel">Cancel</button>
+            </div>
+            <p class="form-hint" id="schedule-status-message" hidden></p>
         </form>
     </div>
 </div>

@@ -9,6 +9,7 @@ use App\Models\NotificationModel;
 use App\Models\InstructorModel;
 use App\Models\StudentModel;
 use App\Services\ReminderService;
+use App\Models\EnrollmentRequestModel;
 
 /**
  * Renders the administration dashboard with KPIs and activity feeds.
@@ -22,6 +23,7 @@ class DashboardController extends Controller
     private InstructorModel $instructors;
     private StudentModel $students;
     private ReminderService $reminders;
+    private EnrollmentRequestModel $enrollmentRequests;
 
     /**
      * Wires up DAO and service dependencies for dashboard data.
@@ -36,6 +38,7 @@ class DashboardController extends Controller
         $this->instructors = new InstructorModel();
         $this->students = new StudentModel();
         $this->reminders = new ReminderService();
+        $this->enrollmentRequests = new EnrollmentRequestModel();
     }
 
     /**
@@ -72,6 +75,12 @@ class DashboardController extends Controller
                 $viewData['revenueSeries'] = [];
                 $viewData['showRevenueChart'] = false;
                 $viewData['instructorRevenue'] = $this->reports->instructorRevenue($instructorId);
+                $viewData['assignedStudents'] = $instructorId > 0
+                    ? $this->students->forInstructor($instructorId)
+                    : [];
+                $viewData['requestHistory'] = $instructorId > 0
+                    ? array_slice($this->enrollmentRequests->forInstructor($instructorId), 0, 5)
+                    : [];
                 break;
             case 'student':
                 $student = $this->students->findByUserId((int) ($user['id'] ?? 0));
@@ -82,6 +91,8 @@ class DashboardController extends Controller
                 $viewData['revenueSeries'] = [];
                 $viewData['showRevenueChart'] = false;
                 $viewData['assignedInstructor'] = $this->resolveAssignedInstructor($studentId);
+                $viewData['studentProfile'] = $student ?: [];
+                $viewData['enrollmentRequests'] = $this->enrollmentRequests->forStudent($studentId);
                 break;
             default:
                 $viewData['summary'] = $this->reports->dashboardSummary();
@@ -130,3 +141,6 @@ class DashboardController extends Controller
         return null;
     }
 }
+
+
+

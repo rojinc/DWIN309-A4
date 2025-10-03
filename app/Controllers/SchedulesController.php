@@ -55,19 +55,29 @@ class SchedulesController extends Controller
         $year = isset($_GET['year']) ? (int) $_GET['year'] : (int) date('Y');
         $month = isset($_GET['month']) ? (int) $_GET['month'] : (int) date('n');
         $user = $this->auth->user();
-        $canManage = in_array($user['role'], ['admin', 'staff'], true);
+        $role = $user['role'] ?? '';
+        $canManage = in_array($role, ['admin', 'staff'], true);
+        $canRate = $role === 'instructor';
+        $instructorId = null;
+        if ($canRate) {
+            $instructor = $this->instructors->findByUserId((int) ($user['id'] ?? 0));
+            $instructorId = (int) ($instructor['id'] ?? 0);
+        }
 
         $this->render('schedules/index', [
             'pageTitle' => 'Scheduling Calendar',
             'year' => $year,
             'month' => $month,
             'canManage' => $canManage,
+            'canRate' => $canRate,
+            'instructorId' => $instructorId,
             'students' => $canManage ? $this->students->all() : [],
             'courses' => $canManage ? $this->courses->all() : [],
             'instructors' => $canManage ? $this->instructors->all() : [],
             'vehicles' => $canManage ? $this->vehicles->all() : [],
             'branches' => $canManage ? $this->branches->all() : [],
             'csrfAjaxToken' => $canManage ? Csrf::token('schedule_ajax') : null,
+            'statusCsrfToken' => $canRate ? Csrf::token('schedule_status') : null,
         ]);
     }
 

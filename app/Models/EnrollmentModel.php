@@ -95,4 +95,16 @@ class EnrollmentModel extends Model
             'id' => $id,
         ]);
     }
+
+    /**
+     * Updates the progress percentage for an enrolment.
+     */
+    public function setProgress(int $id, int $progress): bool
+    {
+        $stmt = $this->db->prepare('UPDATE enrollments SET progress_percentage = :progress, updated_at = NOW() WHERE id = :id');
+        return $stmt->execute([
+            'progress' => $progress,
+            'id' => $id,
+        ]);
+    }
 }

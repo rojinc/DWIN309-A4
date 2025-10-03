@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $summary = $summary ?? [];
 $upcomingSchedules = $upcomingSchedules ?? [];
 $recentInvoices = $recentInvoices ?? [];
@@ -8,6 +8,10 @@ $role = $role ?? 'guest';
 $showRevenueChart = $showRevenueChart ?? true;
 $instructorRevenue = $instructorRevenue ?? null;
 $assignedInstructor = $assignedInstructor ?? null;
+$assignedStudents = $assignedStudents ?? [];
+$requestHistory = $requestHistory ?? [];
+$enrollmentRequests = $enrollmentRequests ?? [];
+$studentProfile = $studentProfile ?? [];
 
 $cards = [];
 $cards[] = [
@@ -63,6 +67,22 @@ $showInvoiceStudentColumn = $role !== 'student';
     <?php if (!empty($assignedInstructor['course'])): ?>
         <p class="muted">Current course: <?= e($assignedInstructor['course']); ?></p>
     <?php endif; ?>
+</section>
+<?php endif; ?>
+<?php if ($role === 'student' && !empty($studentProfile)): ?>
+<section class="card">
+    <h2>Your Details</h2>
+    <dl class="definition-list">
+        <dt>Name</dt>
+        <dd><?= e(trim(($studentProfile['first_name'] ?? '') . ' ' . ($studentProfile['last_name'] ?? ''))); ?></dd>
+        <dt>Email</dt>
+        <dd><?= e($studentProfile['email'] ?? ''); ?></dd>
+        <dt>Phone</dt>
+        <dd><?= e($studentProfile['phone'] ?? 'N/A'); ?></dd>
+        <dt>Emergency Contact</dt>
+        <dd><?= e($studentProfile['emergency_contact_name'] ?? 'N/A'); ?> (<?= e($studentProfile['emergency_contact_phone'] ?? 'N/A'); ?>)</dd>
+    </dl>
+    <a class="button button-secondary" href="<?= route('students', 'profile'); ?>">Edit details</a>
 </section>
 <?php endif; ?>
 <?php if ($showRevenueChart): ?>
@@ -135,6 +155,89 @@ $showInvoiceStudentColumn = $role !== 'student';
         </table>
     </div>
 </section>
+<?php if ($role === 'instructor' && !empty($assignedStudents)): ?>
+<section class="card">
+    <h2>Your Students</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Contact</th>
+                <th>Branch</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach (array_slice($assignedStudents, 0, 8) as $student): ?>
+                <?php
+                $contactParts = array_filter([
+                    $student['email'] ?? null,
+                    $student['phone'] ?? null,
+                ]);
+                ?>
+                <tr>
+                    <td><?= e(trim(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? ''))); ?></td>
+                    <td><?= e(implode(' / ', $contactParts) ?: 'N/A'); ?></td>
+                    <td><?= e($student['branch_name'] ?? ''); ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</section>
+<?php endif; ?>
+<?php if ($role === 'instructor' && !empty($requestHistory)): ?>
+<section class="card">
+    <h2>Recent Enrollment Decisions</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Course</th>
+                <th>Status</th>
+                <th>Decided</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($requestHistory as $request): ?>
+                <tr>
+                    <td><?= e(trim(($request['student_first_name'] ?? '') . ' ' . ($request['student_last_name'] ?? ''))); ?></td>
+                    <td><?= e($request['course_title'] ?? ''); ?></td>
+                    <td><span class="status-pill status-<?= e($request['status']); ?>"><?= e(ucfirst($request['status'])); ?></span></td>
+                    <td><?= !empty($request['decision_at']) ? e(date('d M Y', strtotime($request['decision_at']))) : 'N/A'; ?></td>
+                    <td><?= e($request['admin_notes'] ?? ''); ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</section>
+<?php endif; ?>
+<?php if ($role === 'student' && !empty($enrollmentRequests)): ?>
+<section class="card">
+    <h2>Your Enrollment Requests</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Course</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th>Reviewed</th>
+                <th>Review Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($enrollmentRequests as $request): ?>
+                <tr>
+                    <td><?= e($request['course_title'] ?? ''); ?></td>
+                    <td><span class="status-pill status-<?= e($request['status']); ?>"><?= e(ucfirst($request['status'])); ?></span></td>
+                    <td><?= e(date('d M Y', strtotime($request['created_at'] ?? 'now'))); ?></td>
+                    <td><?= !empty($request['decision_at']) ? e(date('d M Y', strtotime($request['decision_at']))) : 'Pending'; ?></td>
+                    <td><?= e(($request['admin_notes'] ?? '') !== '' ? $request['admin_notes'] : 'N/A'); ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</section>
+<?php endif; ?>
 <section class="card">
     <h2>Notifications</h2>
     <ul class="notification-list">

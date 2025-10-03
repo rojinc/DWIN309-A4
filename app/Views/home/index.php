@@ -1,10 +1,11 @@
-<section class="hero">
+ï»¿<section class="hero">
     <div class="hero-text">
         <h1>Empowering Safer Victorian Drivers Since 2015</h1>
-        <p>Origin Driving School has transformed learner training across Melbourne’s bayside, CBD, and surrounding suburbs. Our management system streamlines scheduling, teaching, compliance, and communication for every lesson and VicRoads test.</p>
+        <p>Origin Driving School has transformed learner training across Melbourneï¿½s bayside, CBD, and surrounding suburbs. Our management system streamlines scheduling, teaching, compliance, and communication for every lesson and VicRoads test.</p>
         <div class="hero-actions">
-            <a class="button" href="<?= route('auth', 'login'); ?>">Enter Management System</a>
-            <a class="button button-secondary" href="#features">Explore Features</a>
+            <a class="button" href="<?= route('enrollmentrequests', 'apply'); ?>">Enroll Now</a>
+            <a class="button button-secondary" href="<?= route('auth', 'login'); ?>">Enter Management System</a>
+            <a class="button button-ghost" href="#features">Explore Features</a>
         </div>
     </div>
     <div class="hero-stats">

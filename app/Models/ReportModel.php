@@ -119,15 +119,37 @@ class ReportModel extends Model
     /**
      * Summarises revenue by month for charting.
      */
-    public function monthlyRevenue(int $months = 6): array
+    public function monthlyRevenue(int $months = 12): array
     {
+        $months = max(1, $months);
+        $start = new \DateTime('first day of this month');
+        if ($months > 1) {
+            $start->modify('-' . ($months - 1) . ' months');
+        }
+
         $stmt = $this->db->prepare('SELECT DATE_FORMAT(payment_date, "%Y-%m") AS period, SUM(amount) AS total
                                      FROM payments
-                                     WHERE payment_date >= DATE_SUB(CURDATE(), INTERVAL :months MONTH)
+                                     WHERE payment_date >= :start
                                      GROUP BY period ORDER BY period');
-        $stmt->bindValue(':months', $months, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll();
+        $stmt->execute(['start' => $start->format('Y-m-d')]);
+        $fetched = $stmt->fetchAll();
+        $totals = [];
+        foreach ($fetched as $row) {
+            $totals[$row['period']] = (float) ($row['total'] ?? 0);
+        }
+
+        $series = [];
+        $cursor = clone $start;
+        for ($i = 0; $i < $months; $i++) {
+            $key = $cursor->format('Y-m');
+            $series[] = [
+                'period' => $key,
+                'total' => (float) ($totals[$key] ?? 0),
+            ];
+            $cursor->modify('+1 month');
+        }
+
+        return $series;
     }
 
     /**
@@ -188,3 +210,4 @@ class ReportModel extends Model
         return $this->db->query($sql)->fetchAll();
     }
 }
+

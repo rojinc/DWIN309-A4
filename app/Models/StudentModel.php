@@ -44,7 +44,13 @@ class StudentModel extends Model
      */
     public function findByUserId(int $userId): ?array
     {
-        $stmt = $this->db->prepare('SELECT * FROM students WHERE user_id = :user_id LIMIT 1');
+        $sql = 'SELECT s.*, u.first_name, u.last_name, u.email, u.phone, b.name AS branch_name
+                FROM students s
+                INNER JOIN users u ON u.id = s.user_id
+                LEFT JOIN branches b ON b.id = s.branch_id
+                WHERE s.user_id = :user_id
+                LIMIT 1';
+        $stmt = $this->db->prepare($sql);
         $stmt->execute(['user_id' => $userId]);
         $result = $stmt->fetch();
         return $result === false ? null : $result;
@@ -141,10 +147,14 @@ class StudentModel extends Model
                 FROM students s
                 INNER JOIN users u ON u.id = s.user_id
                 LEFT JOIN branches b ON b.id = s.branch_id
-                WHERE u.first_name LIKE :term OR u.last_name LIKE :term OR s.license_number LIKE :term
+                WHERE u.first_name LIKE :first_term OR u.last_name LIKE :last_term OR s.license_number LIKE :license_term
                 ORDER BY u.first_name';
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['term' => $pattern]);
+        $stmt->execute([
+            'first_term' => $pattern,
+            'last_term' => $pattern,
+            'license_term' => $pattern,
+        ]);
         return $stmt->fetchAll();
     }
 
@@ -167,3 +177,4 @@ class StudentModel extends Model
         ];
     }
 }
+

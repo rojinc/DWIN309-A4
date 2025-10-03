@@ -11,7 +11,7 @@ class InvoiceModel extends Model
 {
     public function all(): array
     {
-        $sql = 'SELECT i.*, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.id AS student_user_id, c.title AS course_title
+        $sql = 'SELECT i.*, e.student_id, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.id AS student_user_id, c.title AS course_title
                 FROM invoices i
                 INNER JOIN enrollments e ON e.id = i.enrollment_id
                 INNER JOIN students s ON s.id = e.student_id
@@ -24,7 +24,7 @@ class InvoiceModel extends Model
 
     public function forInstructor(int $instructorId, int $limit = 5): array
     {
-        $sql = 'SELECT i.*, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.id AS student_user_id, c.title AS course_title
+        $sql = 'SELECT i.*, e.student_id, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.id AS student_user_id, c.title AS course_title
                 FROM invoices i
                 INNER JOIN enrollments e ON e.id = i.enrollment_id
                 INNER JOIN students s ON s.id = e.student_id
@@ -42,27 +42,40 @@ class InvoiceModel extends Model
         return $stmt->fetchAll();
     }
 
-    public function forStudent(int $studentId, int $limit = 5): array
+    public function forStudent(int $studentId, ?int $limit = 5): array
     {
-        $sql = 'SELECT i.*, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.id AS student_user_id, c.title AS course_title
+        $sql = 'SELECT i.*, e.student_id, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.id AS student_user_id, c.title AS course_title
                 FROM invoices i
                 INNER JOIN enrollments e ON e.id = i.enrollment_id
                 INNER JOIN students s ON s.id = e.student_id
                 INNER JOIN users u ON u.id = s.user_id
                 INNER JOIN courses c ON c.id = e.course_id
                 WHERE e.student_id = :student_id
-                ORDER BY i.issue_date DESC
-                LIMIT :limit';
+                ORDER BY i.issue_date DESC';
+        if ($limit !== null) {
+            $sql .= ' LIMIT :limit';
+        }
         $stmt = $this->db->prepare($sql);
         $stmt->bindValue(':student_id', $studentId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        if ($limit !== null) {
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        }
         $stmt->execute();
         return $stmt->fetchAll();
     }
 
+    public function findForStudent(int $invoiceId, int $studentId): ?array
+    {
+        $invoice = $this->find($invoiceId);
+        if (!$invoice) {
+            return null;
+        }
+        return (int) ($invoice['student_id'] ?? 0) === $studentId ? $invoice : null;
+    }
+
     public function find(int $id): ?array
     {
-        $stmt = $this->db->prepare('SELECT i.*, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.email AS student_email, u.id AS student_user_id, c.title AS course_title
+        $stmt = $this->db->prepare('SELECT i.*, e.student_id, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.email AS student_email, u.id AS student_user_id, c.title AS course_title
                                      FROM invoices i
                                      INNER JOIN enrollments e ON e.id = i.enrollment_id
                                      INNER JOIN students s ON s.id = e.student_id

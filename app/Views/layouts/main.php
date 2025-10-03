@@ -13,8 +13,20 @@ $navItems = [
         'roles' => ['admin', 'staff', 'instructor', 'student']
     ],
     [
+        'label' => 'My Invoices',
+        'page' => 'studentinvoices',
+        'action' => 'index',
+        'roles' => ['student']
+    ],
+    [
         'label' => 'Students',
         'page' => 'students',
+        'action' => 'index',
+        'roles' => ['admin', 'staff', 'instructor']
+    ],
+    [
+        'label' => 'Enrollment Requests',
+        'page' => 'enrollmentrequests',
         'action' => 'index',
         'roles' => ['admin', 'staff', 'instructor']
     ],
@@ -143,7 +155,7 @@ $navItems = [
         <strong>Group Members</strong>: Alice Chen (SID: KIA202301) - Backend &amp; Data Layer, David Singh (SID: KIA202302) - Frontend &amp; UX, Priya Patel (SID: KIA202303) - QA &amp; Documentation.
     </div>
     <div>
-        © <?= date('Y'); ?> Origin Driving School. Built for the DWIN309 Final Assessment, Kent Institute Australia.
+        ï¿½ <?= date('Y'); ?> Origin Driving School. Built for the DWIN309 Final Assessment, Kent Institute Australia.
     </div>
 </footer>
 <script src="<?= asset('js/app.js'); ?>"></script>

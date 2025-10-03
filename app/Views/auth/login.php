@@ -13,5 +13,5 @@
         </label>
         <button type="submit" class="button">Sign in</button>
     </form>
-    <p class="auth-help">Need an account? Contact your administrator.</p>
+    <p class="auth-help">New to Origin Driving School? <a href="<?= route('enrollmentrequests', 'apply'); ?>">Submit an enrollment request</a>.</p>
 </section>

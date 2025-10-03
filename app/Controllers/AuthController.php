@@ -16,6 +16,10 @@ class AuthController extends Controller
      */
     public function loginAction(): void
     {
+        if ($this->auth->check()) {
+            $this->redirect(route('dashboard', 'index'));
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::verify('login', post('csrf_token'))) {
                 $this->flash('error', 'Security token mismatch. Please try again.');

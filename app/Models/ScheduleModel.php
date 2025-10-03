@@ -94,11 +94,16 @@ class ScheduleModel extends Model
      */
     public function create(array $data): int
     {
-        if ($this->hasConflict($data['instructor_id'], $data['scheduled_date'], $data['start_time'], $data['end_time'], $data['vehicle_id'] ?? null, null)) {
+        $studentId = $this->resolveStudentId((int) ($data['enrollment_id'] ?? 0));
+        if ($this->hasUnavailabilityConflict((int) $data['instructor_id'], $data['scheduled_date'], $data['start_time'], $data['end_time'])) {
+            throw new \RuntimeException('Instructor is unavailable for the selected time.');
+        }
+        if ($this->hasBookingConflict((int) $data['instructor_id'], $studentId, $data['scheduled_date'], $data['start_time'], $data['end_time'], $data['vehicle_id'] ?? null, null)) {
             throw new \RuntimeException('Schedule conflict detected.');
         }
-        $sql = 'INSERT INTO schedules (enrollment_id, instructor_id, vehicle_id, branch_id, event_type, scheduled_date, start_time, end_time, status, lesson_topic, notes, reminder_sent, created_at, updated_at)
-                VALUES (:enrollment_id, :instructor_id, :vehicle_id, :branch_id, :event_type, :scheduled_date, :start_time, :end_time, :status, :lesson_topic, :notes, :reminder_sent, NOW(), NOW())';
+
+        $sql = 'INSERT INTO schedules (enrollment_id, instructor_id, vehicle_id, branch_id, event_type, scheduled_date, start_time, end_time, status, lesson_topic, notes, student_rating, student_feedback, completion_marked_by, completion_marked_at, reminder_sent, created_at, updated_at)
+                VALUES (:enrollment_id, :instructor_id, :vehicle_id, :branch_id, :event_type, :scheduled_date, :start_time, :end_time, :status, :lesson_topic, :notes, :student_rating, :student_feedback, :completion_marked_by, :completion_marked_at, :reminder_sent, NOW(), NOW())';
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'enrollment_id' => $data['enrollment_id'],
@@ -112,6 +117,10 @@ class ScheduleModel extends Model
             'status' => $data['status'] ?? 'scheduled',
             'lesson_topic' => $data['lesson_topic'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'student_rating' => $data['student_rating'] ?? null,
+            'student_feedback' => $data['student_feedback'] ?? null,
+            'completion_marked_by' => $data['completion_marked_by'] ?? null,
+            'completion_marked_at' => $data['completion_marked_at'] ?? null,
             'reminder_sent' => $data['reminder_sent'] ?? 0,
         ]);
         return (int) $this->db->lastInsertId();
@@ -122,9 +131,14 @@ class ScheduleModel extends Model
      */
     public function update(int $id, array $data): bool
     {
-        if ($this->hasConflict($data['instructor_id'], $data['scheduled_date'], $data['start_time'], $data['end_time'], $data['vehicle_id'] ?? null, $id)) {
+        $studentId = $this->resolveStudentId((int) ($data['enrollment_id'] ?? 0));
+        if ($this->hasUnavailabilityConflict((int) $data['instructor_id'], $data['scheduled_date'], $data['start_time'], $data['end_time'])) {
+            throw new \RuntimeException('Instructor is unavailable for the selected time.');
+        }
+        if ($this->hasBookingConflict((int) $data['instructor_id'], $studentId, $data['scheduled_date'], $data['start_time'], $data['end_time'], $data['vehicle_id'] ?? null, $id)) {
             throw new \RuntimeException('Schedule conflict detected.');
         }
+
         $sql = 'UPDATE schedules
                 SET enrollment_id = :enrollment_id,
                     instructor_id = :instructor_id,
@@ -137,6 +151,10 @@ class ScheduleModel extends Model
                     status = :status,
                     lesson_topic = :lesson_topic,
                     notes = :notes,
+                    student_rating = :student_rating,
+                    student_feedback = :student_feedback,
+                    completion_marked_by = :completion_marked_by,
+                    completion_marked_at = :completion_marked_at,
                     reminder_sent = :reminder_sent,
                     updated_at = NOW()
                 WHERE id = :id';
@@ -153,6 +171,10 @@ class ScheduleModel extends Model
             'status' => $data['status'] ?? 'scheduled',
             'lesson_topic' => $data['lesson_topic'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'student_rating' => $data['student_rating'] ?? null,
+            'student_feedback' => $data['student_feedback'] ?? null,
+            'completion_marked_by' => $data['completion_marked_by'] ?? null,
+            'completion_marked_at' => $data['completion_marked_at'] ?? null,
             'reminder_sent' => $data['reminder_sent'] ?? 0,
             'id' => $id,
         ]);
@@ -230,7 +252,71 @@ class ScheduleModel extends Model
         $stmt->execute($params);
         $row = $stmt->fetch();
         return (int) ($row['total'] ?? 0) > 0;
-    }
+    }
+
+
+    /**
+     * Exposes instructor unavailability check for API consumers.
+     */
+    public function hasInstructorUnavailability(int $instructorId, string $date, string $startTime, string $endTime): bool
+    {
+        return $this->hasUnavailabilityConflict($instructorId, $date, $startTime, $endTime);
+    }
+
+    /**
+     * Detects overlapping bookings for a student during a proposed window.
+     */
+    public function hasStudentOverlap(int $studentId, string $date, string $startTime, string $endTime, ?int $ignoreId): bool
+    {
+        if ($studentId <= 0) {
+            return false;
+        }
+
+        $params = [
+            'student_id' => $studentId,
+            'scheduled_date' => $date,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+        ];
+        $sql = 'SELECT COUNT(*) AS total
+                FROM schedules sch
+                INNER JOIN enrollments e ON e.id = sch.enrollment_id
+                WHERE e.student_id = :student_id
+                  AND sch.scheduled_date = :scheduled_date
+                  AND (:start_time < sch.end_time AND :end_time > sch.start_time)';
+        if ($ignoreId) {
+            $sql .= ' AND sch.id <> :ignore_id';
+            $params['ignore_id'] = $ignoreId;
+        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch();
+        return (int) ($row['total'] ?? 0) > 0;
+    }
+
+
+    /**
+     * Applies status, rating, and feedback updates for a scheduled lesson.
+     */
+    public function setOutcome(int $id, array $data): bool
+    {
+        $stmt = $this->db->prepare('UPDATE schedules
+                SET status = :status,
+                    student_rating = :student_rating,
+                    student_feedback = :student_feedback,
+                    completion_marked_by = :completion_marked_by,
+                    completion_marked_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = :id');
+        return $stmt->execute([
+            'status' => $data['status'],
+            'student_rating' => $data['student_rating'],
+            'student_feedback' => $data['student_feedback'],
+            'completion_marked_by' => $data['completion_marked_by'],
+            'id' => $id,
+        ]);
+    }
+
 
     /**
      * Checks whether an instructor has any schedules with the specified student.
@@ -250,7 +336,84 @@ class ScheduleModel extends Model
         return (int) ($row['total'] ?? 0) > 0;
     }
 
+    /**
+     * Ensures enrolment lookups can resolve the owning student for conflict checks.
+     */
+    private function resolveStudentId(int $enrollmentId): int
+    {
+        if ($enrollmentId <= 0) {
+            return 0;
+        }
+        $stmt = $this->db->prepare('SELECT student_id FROM enrollments WHERE id = :id');
+        $stmt->execute(['id' => $enrollmentId]);
+        $row = $stmt->fetch();
+        return (int) ($row['student_id'] ?? 0);
+    }
+
+    /**
+     * Validates that the instructor is available for the proposed lesson window.
+     */
+    private function hasUnavailabilityConflict(int $instructorId, string $date, string $startTime, string $endTime): bool
+    {
+        if ($instructorId <= 0) {
+            return false;
+        }
+        $startDateTime = $date . ' ' . $startTime;
+        $endDateTime = $date . ' ' . $endTime;
+        $stmt = $this->db->prepare('SELECT COUNT(*) AS total
+                                     FROM instructor_unavailability
+                                     WHERE instructor_id = :instructor_id
+                                       AND :start_dt < end_datetime
+                                       AND :end_dt > start_datetime');
+        $stmt->execute([
+            'instructor_id' => $instructorId,
+            'start_dt' => $startDateTime,
+            'end_dt' => $endDateTime,
+        ]);
+        $row = $stmt->fetch();
+        return (int) ($row['total'] ?? 0) > 0;
+    }
+
+    /**
+     * Aggregates instructor, vehicle, and student overlap detection for schedule creation/update.
+     */
+    private function hasBookingConflict(int $instructorId, int $studentId, string $date, string $startTime, string $endTime, ?int $vehicleId, ?int $ignoreId): bool
+    {
+        if ($this->hasConflict($instructorId, $date, $startTime, $endTime, $vehicleId, $ignoreId)) {
+            return true;
+        }
+
+        if ($studentId <= 0) {
+            return false;
+        }
+
+        $params = [
+            'student_id' => $studentId,
+            'scheduled_date' => $date,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+        ];
+        $sql = 'SELECT COUNT(*) AS total
+                FROM schedules sch
+                INNER JOIN enrollments e ON e.id = sch.enrollment_id
+                WHERE e.student_id = :student_id
+                  AND sch.scheduled_date = :scheduled_date
+                  AND (:start_time < sch.end_time AND :end_time > sch.start_time)';
+        if ($ignoreId) {
+            $sql .= ' AND sch.id <> :ignore_id';
+            $params['ignore_id'] = $ignoreId;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch();
+        return (int) ($row['total'] ?? 0) > 0;
+    }
+
 }
+
+
+
 
 
 

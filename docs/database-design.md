@@ -38,6 +38,9 @@ Defines training programmes with pricing and lesson count. Junction table `cours
 ### enrollments
 Links students to courses. Tracks start date, status (active, in_progress, completed, cancelled), progress percentage, and notes. References `students(id)` and `courses(id)`.
 
+### enrollment_requests
+Captures self-service enrollment submissions from prospective or existing students. Stores preferred schedule, optional instructor, freeform notes, and review metadata (status, decision timestamps, reviewer, admin notes). Links to `students`, `courses`, and optionally `instructors` and `users` (decision maker).
+
 ### vehicles
 Fleet registry with transmission type, plate number, VIN, branch, availability status, service history dates, and notes.
 

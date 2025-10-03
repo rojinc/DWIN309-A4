@@ -1,7 +1,7 @@
 <section class="card">
     <h1>Create Branch</h1>
     <form method="post" action="<?= route('branches', 'store'); ?>" class="form-grid">
-        <input type="hidden" name="csrf_token" value="<?= e(); ?>">
+        <input type="hidden" name="csrf_token" value="<?= e($csrfToken ?? ''); ?>">
         <label>
             <span>Branch name</span>
             <input type="text" name="name" required>

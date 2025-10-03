@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ï»¿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -17,6 +17,7 @@
         <a class="nav-link" href="#features">Features</a>
         <a class="nav-link" href="#team">Our Team</a>
         <a class="nav-link" href="#contact">Contact</a>
+        <a class="button button-secondary" href="<?= route('enrollmentrequests', 'apply'); ?>">Enroll Now</a>
         <a class="button" href="<?= route('auth', 'login'); ?>">Launch System</a>
     </nav>
 </header>
@@ -24,8 +25,10 @@
     <?= $content; ?>
 </main>
 <footer class="public-footer" id="contact">
-    <p>Origin Driving School • Kent Institute Australia • DWIN309 Final Assessment Submission</p>
-    <p>Email: hello@origindrivingschool.com.au • Phone: (03) 8000 0000</p>
+    <p>Origin Driving School ï¿½ Kent Institute Australia ï¿½ DWIN309 Final Assessment Submission</p>
+    <p>Email: hello@origindrivingschool.com.au ï¿½ Phone: (03) 8000 0000</p>
 </footer>
+    <script src="<?= asset('js/app.js'); ?>"></script>
 </body>
 </html>
+

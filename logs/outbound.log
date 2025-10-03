@@ -1,2 +1,4 @@
 [2025-10-03T19:26:00+10:00] {"channel":"email","to":"jack.mason@student.com","subject":"Reminder: Invoice Due","body":"Your invoice INV-20250301-0001 is due on 08 Mar 2025.","status":"queued","reason":null}
 [2025-10-03T19:54:28+10:00] {"channel":"email","to":"jack.mason@student.com","subject":"Payment received for invoice INV-20250301-0001","body":"We have recorded a payment of $568.00 on 03 Oct 2025\n\nInvoice number: INV-20250301-0001\nTotal: $968.00\nBalance due: $0.00\nDue date: 08 Mar 2025","status":"queued","reason":null}
+[2025-10-04T08:47:34+10:00] {"channel":"email","to":"jack.mason@student.com","subject":"Reminder: Invoice Due","body":"Your invoice INV-20250301-0001 is due on 08 Mar 2025.","status":"queued","reason":null}
+[2025-10-04T08:51:48+10:00] {"channel":"sms","to":"0401 555 777","message":"Lesson booked for 05 Oct 2025 at 12:00","status":"queued","reason":null}

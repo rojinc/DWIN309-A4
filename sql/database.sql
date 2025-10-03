@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS invoice_items;
 DROP TABLE IF EXISTS invoices;
 DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS enrollment_requests;
 DROP TABLE IF EXISTS enrollments;
 DROP TABLE IF EXISTS vehicles;
 DROP TABLE IF EXISTS course_instructor;
@@ -154,6 +155,28 @@ CREATE TABLE enrollments (
     CONSTRAINT fk_enroll_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE enrollment_requests (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    student_id INT UNSIGNED NOT NULL,
+    course_id INT UNSIGNED NOT NULL,
+    preferred_date DATE NULL,
+    preferred_time TIME NULL,
+    status ENUM('pending','approved','declined') DEFAULT 'pending',
+    instructor_id INT UNSIGNED NULL,
+    student_notes TEXT NULL,
+    admin_notes TEXT NULL,
+    decision_by INT UNSIGNED NULL,
+    decision_at DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_request_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+    CONSTRAINT fk_request_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    CONSTRAINT fk_request_instructor FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE SET NULL,
+    CONSTRAINT fk_request_decision_user FOREIGN KEY (decision_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_request_status (status),
+    INDEX idx_request_instructor (instructor_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE schedules (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     enrollment_id INT UNSIGNED NOT NULL,
@@ -164,7 +187,11 @@ CREATE TABLE schedules (
     scheduled_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    status ENUM('scheduled','completed','cancelled') DEFAULT 'scheduled',
+    status ENUM('scheduled','completed','cancelled','not_completed') DEFAULT 'scheduled',
+    student_rating TINYINT UNSIGNED NULL,
+    student_feedback TEXT NULL,
+    completion_marked_by INT UNSIGNED NULL,
+    completion_marked_at DATETIME NULL,
     lesson_topic VARCHAR(160) NULL,
     notes TEXT NULL,
     reminder_sent TINYINT(1) DEFAULT 0,
@@ -174,8 +201,22 @@ CREATE TABLE schedules (
     CONSTRAINT fk_schedule_instructor FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE,
     CONSTRAINT fk_schedule_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
     CONSTRAINT fk_schedule_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL,
+    CONSTRAINT fk_schedule_completed_by FOREIGN KEY (completion_marked_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_schedule_date (scheduled_date),
     INDEX idx_schedule_instructor (instructor_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE instructor_unavailability (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    instructor_id INT UNSIGNED NOT NULL,
+    start_datetime DATETIME NOT NULL,
+    end_datetime DATETIME NOT NULL,
+    reason VARCHAR(160) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_unavailability_instructor FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE,
+    INDEX idx_unavailability_instructor (instructor_id),
+    INDEX idx_unavailability_window (start_datetime, end_datetime)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE invoices (
@@ -339,6 +380,10 @@ INSERT INTO vehicles (name, type, transmission, plate_number, vin, branch_id, st
 INSERT INTO enrollments (student_id, course_id, start_date, status, progress_percentage, notes) VALUES
 (1, 1, '2025-03-01', 'active', 10, 'Completed orientation lesson.');
 
+INSERT INTO enrollment_requests (student_id, course_id, preferred_date, preferred_time, status, instructor_id, student_notes, admin_notes, decision_by, decision_at) VALUES
+(1, 2, '2025-03-18', '10:00:00', 'approved', 1, 'Would like conversion lessons on weekends.', 'Approved and scheduled trial lesson.', 2, '2025-03-02 09:00:00'),
+(1, 3, '2025-03-25', '14:00:00', 'declined', NULL, 'Interested in assessment package after core lessons.', 'Advise completing core curriculum before assessment.', 2, '2025-03-03 11:00:00');
+
 INSERT INTO invoices (enrollment_id, invoice_number, issue_date, due_date, subtotal, tax_amount, total, status, notes) VALUES
 (1, 'INV-20250301-0001', '2025-03-01', '2025-03-08', 880.00, 88.00, 968.00, 'partial', 'Auto-generated upon enrolment.');
 
@@ -376,3 +421,4 @@ INSERT INTO notes (related_type, related_id, author_user_id, content, created_at
 INSERT INTO audit_trail (user_id, action, entity_type, entity_id, details, created_at) VALUES
 (2, 'student_created', 'student', 1, 'Enrollment #1 and invoice INV-20250301-0001 generated.', '2025-03-01 08:30:00'),
 (2, 'schedule_created', 'schedule', 1, 'Lesson scheduled for 05 Mar 2025.', '2025-03-01 08:45:00');
+

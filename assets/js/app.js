@@ -223,8 +223,11 @@ if (canManage) {
         if (!calendarEl || !upcomingEl) {
             return;
         }
-        calendarEl.innerHTML = '<div class="calendar-loading">Loading�</div>';
+        calendarEl.innerHTML = '<div class=\"calendar-loading\">Loading...</div>';
         upcomingEl.innerHTML = '';
+        if (completedEl) {
+            completedEl.innerHTML = '';
+        }
         try {
             const params = new URLSearchParams({ year: year, month: month });
             const response = await fetch(eventsEndpoint + '&' + params.toString());
@@ -233,12 +236,14 @@ if (canManage) {
             container.dataset.month = String(month);
             renderCalendar(calendarEl, year, month, events, canManage);
             renderUpcoming(upcomingEl, events);
+            if (completedEl) {
+                renderCompleted(completedEl, events);
+            }
         } catch (error) {
-            calendarEl.innerHTML = '<p class="calendar-error">Unable to load schedule. Please refresh.</p>';
+            calendarEl.innerHTML = '<p class=\"calendar-error\">Unable to load schedule. Please refresh.</p>';
         }
     }
 }
-
 function renderCalendar(calendarEl, year, month, events, canManage) {
     const firstDay = new Date(year, month - 1, 1);
     const totalDays = new Date(year, month, 0).getDate();
@@ -283,22 +288,71 @@ function renderUpcoming(container, events) {
         .map(function (event) {
             return Object.assign({}, event, { startDate: new Date(event.start) });
         })
-        .filter(function (event) { return event.startDate >= new Date(); })
+        .filter(function (event) {
+            return event.status !== 'completed' && event.status !== 'cancelled' && event.startDate >= new Date();
+        })
         .sort(function (a, b) { return a.startDate - b.startDate; })
         .slice(0, 8);
 
     if (!upcoming.length) {
-        container.innerHTML = '<li>No upcoming lessons in this period.</li>';
+        container.innerHTML = '<li class=\"schedule-empty\">No upcoming lessons in this period.</li>';
         return;
     }
+
     container.innerHTML = upcoming.map(function (event) {
-        const date = event.startDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short', weekday: 'short' });
-        const time = event.startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-        return '<li><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(date) + ' � ' + escapeHtml(time) + '</span></li>';
+        const dateText = event.startDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short', weekday: 'short' });
+        const timeText = event.startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        const details = [];
+        if (event.course) {
+            details.push(event.course);
+        }
+        if (event.lesson_topic) {
+            details.push(event.lesson_topic);
+        }
+        const detailText = details.length ? ' - ' + details.join(' | ') : '';
+        const statusLabel = formatStatusLabel(event.status);
+        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(event.status) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
+        return '<li class=\"schedule-upcoming-item\"><div class=\"schedule-upcoming-text\"><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(dateText + ' ' + timeText + detailText) + '</span>' + statusBadge + '</div></li>';
     }).join('');
 }
 
-function groupEventsByDate(events) {
+function renderCompleted(container, events) {
+    const completed = events
+        .map(function (event) {
+            return Object.assign({}, event, { startDate: new Date(event.start) });
+        })
+        .filter(function (event) { return event.status === 'completed'; })
+        .sort(function (a, b) { return b.startDate - a.startDate; })
+        .slice(0, 8);
+
+    if (!completed.length) {
+        container.innerHTML = '<li class=\"schedule-empty\">No completed lessons yet.</li>';
+        return;
+    }
+
+    container.innerHTML = completed.map(function (event) {
+        const dateText = event.startDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short', weekday: 'short' });
+        const timeText = event.startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        const details = [];
+        if (event.course) {
+            details.push(event.course);
+        }
+        if (event.lesson_topic) {
+            details.push(event.lesson_topic);
+        }
+        const detailText = details.length ? ' - ' + details.join(' | ') : '';
+        const statusLabel = formatStatusLabel(event.status);
+        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(event.status) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
+        return '<li class=\"schedule-completed-item\"><div class=\"schedule-upcoming-text\"><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(dateText + ' ' + timeText + detailText) + '</span>' + statusBadge + '</div></li>';
+    }).join('');
+}
+
+function formatStatusLabel(value) {
+    if (!value) {
+        return '';
+    }
+    return value.replace(/_/g, ' ').replace(/\b\w/g, function (letter) { return letter.toUpperCase(); });
+}\r\nfunction groupEventsByDate(events) {
     const map = new Map();
     events.forEach(function (event) {
         const date = event.start.split('T')[0];

@@ -10,6 +10,7 @@ use App\Models\BranchModel;
 use App\Models\CourseModel;
 use App\Models\DocumentModel;
 use App\Models\EnrollmentModel;
+use App\Models\InstructorModel;
 use App\Models\InvoiceModel;
 use App\Models\NoteModel;
 use App\Models\ScheduleModel;
@@ -52,7 +53,7 @@ class StudentsController extends Controller
         $this->documents = new DocumentModel();
         $this->notes = new NoteModel();
         $this->schedules = new ScheduleModel();
-        ->instructors = new InstructorModel();
+        $this->instructors = new InstructorModel();
         $this->audit = new AuditService();
         $this->notifications = new NotificationService();
         $this->reminders = new ReminderService();
@@ -78,18 +79,6 @@ class StudentsController extends Controller
             'pageTitle' => 'Students',
             'students' => $students,
             'search' => $term,
-        ]);
-    }
-        \->render('students/index', [
-            'pageTitle' => 'Students',
-            'students' => \,
-            'search' => \,
-        ]);
-    }
-        \->render('students/index', [
-            'pageTitle' => 'Students',
-            'students' => \,
-            'search' => \,
         ]);
     }
 
@@ -254,6 +243,18 @@ class StudentsController extends Controller
 
         $canUpload = in_array($user['role'], ['admin', 'staff'], true);
         $canManageNotes = in_array($user['role'], ['admin', 'staff', 'instructor'], true);
+        $canUpdateProgress = in_array($user['role'], ['admin', 'staff'], true);
+
+        if (($user['role'] ?? '') === 'instructor') {
+            $instructor = $this->instructors->findByUserId((int) ($user['id'] ?? 0));
+            $instructorId = (int) ($instructor['id'] ?? 0);
+            $canUpdateProgress = $instructorId > 0 && $this->schedules->instructorHasStudent($instructorId, $id);
+        }
+
+        $progressTokens = [];
+        foreach ($enrollments as $enrollment) {
+            $progressTokens[(int) $enrollment['id']] = Csrf::token('enrollment_progress_' . $enrollment['id']);
+        }
 
         $this->render('students/view', [
             'pageTitle' => 'Student Profile',
@@ -267,9 +268,70 @@ class StudentsController extends Controller
             'uploadToken' => Csrf::token('student_upload_' . $id),
             'canUploadDocuments' => $canUpload,
             'canManageNotes' => $canManageNotes,
+            'canUpdateProgress' => $canUpdateProgress,
+            'progressTokens' => $progressTokens,
         ]);
     }
 
+    public function progressAction(): void
+    {
+        $this->requireRole(['admin', 'staff', 'instructor']);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect(route('students', 'index'));
+        }
+
+        $studentId = (int) ($_GET['id'] ?? 0);
+        $enrollmentId = (int) ($_GET['enrollment'] ?? 0);
+
+        if ($studentId <= 0 || $enrollmentId <= 0) {
+            $this->flash('error', 'Invalid enrolment selected.');
+            $this->redirect(route('students', 'index'));
+        }
+
+        if (!Csrf::verify('enrollment_progress_' . $enrollmentId, post('csrf_token'))) {
+            $this->flash('error', 'Security token mismatch.');
+            $this->redirect(route('students', 'view', ['id' => $studentId]));
+        }
+
+        $student = $this->students->find($studentId);
+        $enrollment = $this->enrollments->find($enrollmentId);
+        if (!$student || !$enrollment || (int) $enrollment['student_id'] !== $studentId) {
+            $this->flash('error', 'Enrolment not found.');
+            $this->redirect(route('students', 'index'));
+        }
+
+        $user = $this->auth->user();
+        if (($user['role'] ?? '') === 'instructor') {
+            $instructor = $this->instructors->findByUserId((int) ($user['id'] ?? 0));
+            $instructorId = (int) ($instructor['id'] ?? 0);
+            if ($instructorId <= 0 || !$this->schedules->instructorHasStudent($instructorId, $studentId)) {
+                $this->redirect(route('dashboard', 'forbidden'));
+            }
+        }
+
+        $progressRaw = post('progress_percentage');
+        if ($progressRaw === null || $progressRaw === '') {
+            $this->flash('error', 'Please provide a progress value.');
+            $this->redirect(route('students', 'view', ['id' => $studentId]));
+        }
+
+        if (!is_numeric($progressRaw)) {
+            $this->flash('error', 'Progress must be a number between 0 and 100.');
+            $this->redirect(route('students', 'view', ['id' => $studentId]));
+        }
+
+        $progress = (int) round((float) $progressRaw);
+        $progress = max(0, min(100, $progress));
+
+        if ($this->enrollments->setProgress($enrollmentId, $progress)) {
+            $this->audit->log($user['id'] ?? null, 'enrollment_progress_updated', 'enrollment', $enrollmentId, 'Progress set to ' . $progress . '%');
+            $this->flash('success', 'Progress updated to ' . $progress . '%.');
+        } else {
+            $this->flash('error', 'Unable to update progress. Please try again.');
+        }
+
+        $this->redirect(route('students', 'view', ['id' => $studentId]));
+    }
     public function editAction(): void
     {
         $this->requireRole(['admin', 'staff']);
@@ -430,6 +492,8 @@ class StudentsController extends Controller
         ]);
     }
 }
+
+
 
 
 

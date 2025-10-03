@@ -1,3 +1,7 @@
+<?php
+$canUpdateProgress = $canUpdateProgress ?? false;
+$progressTokens = $progressTokens ?? [];
+?>
 <section class="grid two-column">
     <div class="card">
         <h1><?= e($student['first_name'] . ' ' . $student['last_name']); ?></h1>
@@ -40,7 +44,18 @@
                         <td><?= e($enrollment['course_title']); ?></td>
                         <td><?= e(date('d M Y', strtotime($enrollment['start_date']))); ?></td>
                         <td><?= e(ucfirst($enrollment['status'])); ?></td>
-                        <td><?= e($enrollment['progress_percentage']); ?>%</td>
+                        <td>
+                            <?php if (!empty($canUpdateProgress) && !empty($progressTokens[$enrollment['id']] ?? null)): ?>
+                                <form method="post" action="<?= route('students', 'progress', ['id' => $student['id'], 'enrollment' => $enrollment['id']]); ?>" class="inline-progress-form">
+                                    <input type="hidden" name="csrf_token" value="<?= e($progressTokens[$enrollment['id']]); ?>">
+                                    <label class="visually-hidden" for="progress-<?= e($enrollment['id']); ?>">Progress percentage</label>
+                                    <input id="progress-<?= e($enrollment['id']); ?>" class="progress-input" type="number" name="progress_percentage" min="0" max="100" value="<?= e((string) $enrollment['progress_percentage']); ?>">
+                                    <button class="button button-small" type="submit">Save</button>
+                                </form>
+                            <?php else: ?>
+                                <?= e($enrollment['progress_percentage']); ?>%
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
