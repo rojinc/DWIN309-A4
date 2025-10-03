@@ -1,0 +1,101 @@
+<?php
+namespace App\Models;
+
+use App\Core\Model;
+use PDO;
+
+/**
+ * Provides aggregate reporting queries for dashboards and exports.
+ */
+class ReportModel extends Model
+{
+    /**
+     * Gathers key dashboard metrics in a single payload.
+     */
+    public function dashboardSummary(): array
+    {
+        $totals = $this->db->query('SELECT COUNT(*) AS students FROM students')->fetch();
+        $lessons = $this->db->query('SELECT COUNT(*) AS upcoming FROM schedules WHERE scheduled_date >= CURDATE()')->fetch();
+        $overdue = $this->db->query('SELECT COUNT(*) AS overdue FROM invoices WHERE due_date < CURDATE() AND status <> "paid"')->fetch();
+        $fleet = $this->db->query('SELECT SUM(CASE WHEN status = "available" THEN 1 ELSE 0 END) AS available, COUNT(*) AS total FROM vehicles')->fetch();
+        return [
+            'students' => (int) ($totals['students'] ?? 0),
+            'upcoming_lessons' => (int) ($lessons['upcoming'] ?? 0),
+            'overdue_invoices' => (int) ($overdue['overdue'] ?? 0),
+            'fleet_available' => (int) ($fleet['available'] ?? 0),
+            'fleet_total' => (int) ($fleet['total'] ?? 0),
+        ];
+    }
+
+    /**
+     * Summarises revenue by month for charting.
+     */
+    public function monthlyRevenue(int $months = 6): array
+    {
+        $stmt = $this->db->prepare('SELECT DATE_FORMAT(payment_date, "%Y-%m") AS period, SUM(amount) AS total
+                                     FROM payments
+                                     WHERE payment_date >= DATE_SUB(CURDATE(), INTERVAL :months MONTH)
+                                     GROUP BY period ORDER BY period');
+        $stmt->bindValue(':months', $months, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Computes revenue grouped by course for financial trends.
+     */
+    public function revenueByCourse(): array
+    {
+        $sql = 'SELECT c.title AS course_title, SUM(p.amount) AS total_revenue
+                FROM payments p
+                INNER JOIN invoices i ON i.id = p.invoice_id
+                INNER JOIN enrollments e ON e.id = i.enrollment_id
+                INNER JOIN courses c ON c.id = e.course_id
+                GROUP BY c.id, c.title
+                ORDER BY total_revenue DESC';
+        return $this->db->query($sql)->fetchAll();
+    }
+
+    /**
+     * Returns enrolment retention statistics.
+     */
+    public function retentionStats(): array
+    {
+        $totals = $this->db->query('SELECT COUNT(*) AS total FROM enrollments')->fetch();
+        $completed = $this->db->query('SELECT COUNT(*) AS completed FROM enrollments WHERE status = "completed"')->fetch();
+        $active = $this->db->query('SELECT COUNT(*) AS active FROM enrollments WHERE status IN ("active", "in_progress")')->fetch();
+        return [
+            'total_enrollments' => (int) ($totals['total'] ?? 0),
+            'completed' => (int) ($completed['completed'] ?? 0),
+            'active' => (int) ($active['active'] ?? 0),
+        ];
+    }
+
+    /**
+     * Instructor performance indicators.
+     */
+    public function instructorPerformance(): array
+    {
+        $sql = 'SELECT i.id,
+                       CONCAT(u.first_name, " ", u.last_name) AS instructor_name,
+                       b.name AS branch_name,
+                       SUM(CASE WHEN s.status = "completed" THEN 1 ELSE 0 END) AS completed_lessons,
+                       COUNT(s.id) AS total_lessons
+                FROM instructors i
+                INNER JOIN users u ON u.id = i.user_id
+                LEFT JOIN branches b ON b.id = i.branch_id
+                LEFT JOIN schedules s ON s.instructor_id = i.id
+                GROUP BY i.id, instructor_name, branch_name
+                ORDER BY completed_lessons DESC';
+        return $this->db->query($sql)->fetchAll();
+    }
+
+    /**
+     * Returns student progress breakdown for analytics cards.
+     */
+    public function studentProgressBreakdown(): array
+    {
+        $sql = 'SELECT progress_summary, COUNT(*) AS total FROM students GROUP BY progress_summary';
+        return $this->db->query($sql)->fetchAll();
+    }
+}
