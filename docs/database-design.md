@@ -1,99 +1,149 @@
 # Database Design
 
-## Overview
-The Origin Driving School Management System uses a normalised MySQL schema with InnoDB storage, UTF8MB4 encoding, and referential integrity enforced through foreign keys. Primary keys are unsigned integers with auto-increment, and transactional consistency is maintained via PDO with prepared statements.
+## 1. Overview
+The Origin Driving School Management System persists data in a normalised MySQL schema using the InnoDB engine and UTF8MB4 character set. All tables use unsigned auto-incrementing integer primary keys and enforce referential integrity through foreign keys. Application-layer data access is mediated via PDO prepared statements.
 
-## Entity Catalogue
+## 2. Naming Conventions
+- Table names are lowercase snake_case and plural (e.g., `students`).
+- Foreign key columns follow `{entity}_id` naming (e.g., `student_id`).
+- Timestamps stored in UTC as `DATETIME`.
+- Enumerations implemented with `ENUM` and mirrored in validation helpers.
 
-### users
-| Column | Type | Notes |
+## 3. Crow's Foot ER Diagram
+```mermaid
+%% Mermaid ER diagram approximating crow's foot cardinalities
+erDiagram
+    USERS ||--o{ STUDENTS : extends
+    USERS ||--o{ INSTRUCTORS : extends
+    USERS ||--o{ STAFF_PROFILES : extends
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ COMMUNICATION_RECIPIENTS : receives
+    USERS ||--o{ DOCUMENTS : uploads
+    USERS ||--o{ NOTES : authors
+    USERS ||--o{ AUDIT_TRAIL : performs
+    USERS ||--o{ PAYMENTS : records
+
+    BRANCHES ||--o{ USERS : hosts
+    BRANCHES ||--o{ VEHICLES : owns
+    BRANCHES ||--o{ SCHEDULES : location
+
+    COURSES ||--o{ ENROLLMENTS : includes
+    STUDENTS ||--o{ ENROLLMENTS : participates
+    INSTRUCTORS ||--o{ COURSE_INSTRUCTOR : teaches
+    COURSES ||--o{ COURSE_INSTRUCTOR : allocates
+
+    ENROLLMENTS ||--o{ SCHEDULES : books
+    ENROLLMENTS ||--o{ INVOICES : billed
+    ENROLLMENTS ||--o{ REMINDERS : triggers
+    ENROLLMENTS ||--o{ NOTES : reference
+
+    INSTRUCTORS ||--o{ SCHEDULES : delivers
+    INSTRUCTORS ||--o{ INSTRUCTOR_UNAVAILABILITY : blocks
+    VEHICLES ||--o{ SCHEDULES : assigned
+
+    INVOICES ||--o{ INVOICE_ITEMS : contains
+    INVOICES ||--o{ PAYMENTS : settles
+
+    REMINDERS ||--o{ NOTIFICATIONS : materialise
+
+    COMMUNICATIONS ||--o{ COMMUNICATION_RECIPIENTS : targets
+```
+
+> **Note:** Mermaid's `erDiagram` syntax uses crow's foot-style connectors to communicate cardinalities (|| for one, } for many). The relationships above align with the data dictionary described below.
+
+## 4. Entity Catalogue
+
+### 4.1 Core Identity Tables
+- **`users`** — Master record for all personas (admin, staff, instructor, student). Columns: role, first/last name, email (unique), phone, password_hash, status (`active`/`archived`), branch_id, timestamps.
+- **`students`** — Extends users with licence metadata, emergency contacts, address, progress summary.
+- **`instructors`** — Extends users with accreditation, experience years, availability notes, biography, rating.
+- **`staff_profiles`** — Extends users with position title, employment type, start date, branch assignment.
+
+### 4.2 Academic Structure
+- **`branches`** — Physical school locations with contact information.
+- **`courses`** — Driving programs with pricing, lesson count, status (`active`/`inactive`).
+- **`course_instructor`** — Junction table mapping instructors to courses.
+- **`enrollments`** — Links students to courses; tracks start date, status (`active`, `in_progress`, `completed`, `cancelled`), progress percentage, notes.
+- **`enrollment_requests`** — Captures intake submissions with preferred schedule, instructor preference, approval metadata.
+
+### 4.3 Scheduling & Delivery
+- **`schedules`** — Lesson/exam bookings referencing enrollment, instructor, vehicle, branch; includes timing, status (`scheduled`, `completed`, `cancelled`, `not_completed`), topics, notes, completion metadata, reminder flag.
+- **`instructor_unavailability`** — Blocks out instructor availability windows to prevent conflicting bookings.
+- **`reminders`** — Pending reminder jobs (related_type `invoice`/`schedule`, recipient, channel `email`/`sms`/`in-app`, message, send_on, status `pending`/`sent`/`cancelled`).
+- **`notifications`** — In-app alerts with title, message, level (`info`, `success`, `warning`, `danger`), read flag, timestamps.
+
+### 4.4 Fleet & Compliance
+- **`vehicles`** — Fleet registry including transmission, registration plate (unique), VIN, branch, maintenance dates, status (`available`, `in_service`, `maintenance`).
+- **`documents`** — Uploaded attachments (user_id, file_name, file_path, mime_type, size, category, notes).
+
+### 4.5 Finance
+- **`invoices`** — Header details (invoice_number unique, enrollment_id, issue/due dates, subtotal, tax_amount, total, status `sent`/`partial`/`paid`/`overdue`, notes).
+- **`invoice_items`** — Line items with description, quantity, unit_price, total.
+- **`payments`** — Receipts (invoice_id, amount, payment_date, method, reference, notes, recorded_by user).
+
+### 4.6 Communications & Audit
+- **`communications`** — Broadcast messages (sender, audience_scope, channel `email`/`sms`/`in-app`, subject, message).
+- **`communication_recipients`** — Normalised recipients (communication_id, user_id).
+- **`notes`** — Free-form annotations tied to `student`/`instructor`/`staff` entities with author and timestamp.
+- **`audit_trail`** — Immutable log of sensitive actions capturing user_id, entity_type, entity_id, action, details text, timestamp.
+
+## 5. Referential Integrity Highlights
+- `students.user_id`, `instructors.user_id`, `staff_profiles.user_id` cascade on delete; soft deletes handled through `users.status` to avoid orphaning.
+- `enrollments` references both `students` and `courses`; cascade ensures dependent schedules, invoices, reminders are cleaned when enrolment removed.
+- `schedules.vehicle_id` and `schedules.branch_id` nullable to support unassigned bookings; foreign keys set to `SET NULL` on delete.
+- `payments.recorded_by` retains history even if staff member leaves (`SET NULL`).
+- `notifications.user_id`, `documents.user_id`, and `communication_recipients.user_id` cascade to avoid orphan records.
+
+## 6. Indexing Strategy
+| Table | Index | Purpose |
 | --- | --- | --- |
-| id | INT UNSIGNED PK | Auto increment |
-| role | ENUM('admin','staff','instructor','student') | Authorisation role |
-| first_name | VARCHAR(80) | |
-| last_name | VARCHAR(80) | |
-| email | VARCHAR(160) UNIQUE | Login credential |
-| phone | VARCHAR(32) | |
-| password_hash | VARCHAR(255) | Bcrypt hash |
-| status | ENUM('active','archived') DEFAULT 'active' | Soft delete |
-| branch_id | INT UNSIGNED NULL FK branches(id) | Home branch |
-| created_at | DATETIME | |
-| updated_at | DATETIME | |
+| `users` | `UNIQUE(email)` | Authentication lookup |
+| `enrollment_requests` | `idx_request_status`, `idx_request_instructor` | Queue triage & instructor workload |
+| `schedules` | `idx_schedule_date`, `idx_schedule_instructor` | Calendar views & conflict detection |
+| `instructor_unavailability` | `idx_unavailability_instructor`, `idx_unavailability_window` | Availability checks |
+| `reminders` | `idx_reminder_status_send` | Efficient reminder queue polling |
 
-### branches
-Stores contact details for each driving school location.
+Additional indexes can be introduced for high-volume installations (e.g., `invoices.status`, `payments.invoice_id`).
 
-### students
-Extends `users` for learner-specific data including licence, emergency contact, address, and progress summary. References `users(id)` and `branches(id)`.
+## 7. Data Lifecycle & Retention
+- **Active Records:** Students, enrollments, schedules retained for the learner lifecycle plus statutory retention.
+- **Archival:** Completed enrollments older than 5 years exported to archival storage; reminders older than 12 months purged post-audit.
+- **Deletion:** Hard deletes avoided; `users.status = 'archived'` disables accounts while preserving relationships.
+- **Audit Trail:** Never deleted; optionally rotated into yearly partitions for performance.
 
-### instructors
-Extends `users` for instructor accreditation, experience, and availability. References `users(id)` and `branches(id)`.
+## 8. Sample Queries
+```sql
+-- Fetch upcoming lessons for an instructor
+SELECT s.*, st.first_name, st.last_name, v.name AS vehicle_name
+FROM schedules s
+JOIN enrollments e ON e.id = s.enrollment_id
+JOIN students st ON st.id = e.student_id
+LEFT JOIN vehicles v ON v.id = s.vehicle_id
+WHERE s.instructor_id = :instructorId
+  AND s.scheduled_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 14 DAY)
+ORDER BY s.scheduled_date, s.start_time;
 
-### staff_profiles
-Extends `users` for non-instructor employees (operations, finance, etc.). References `users(id)` and `branches(id)`.
+-- Calculate outstanding balance per student
+SELECT u.id AS user_id, u.first_name, u.last_name,
+       SUM(i.total) - COALESCE(SUM(p.amount), 0) AS balance
+FROM invoices i
+JOIN enrollments e ON e.id = i.enrollment_id
+JOIN students s ON s.id = e.student_id
+JOIN users u ON u.id = s.user_id
+LEFT JOIN payments p ON p.invoice_id = i.id
+WHERE i.status IN ('sent','partial','overdue')
+GROUP BY u.id, u.first_name, u.last_name;
+```
 
-### courses
-Defines training programmes with pricing and lesson count. Junction table `course_instructor(course_id, instructor_id)` manages teaching allocations.
+## 9. Data Access Layer Mapping
+- Each table has a corresponding DAO in `app/Models` encapsulating CRUD operations and domain-specific queries (e.g., `ScheduleModel::forInstructor`, `InvoiceModel::forStudent`).
+- Complex workflows (student onboarding, schedule creation, invoice settlement) orchestrate multiple DAOs within transactions initiated by controllers.
+- SQL statements are centralised inside models, simplifying maintenance, security reviews, and reuse across controllers.
 
-### enrollments
-Links students to courses. Tracks start date, status (active, in_progress, completed, cancelled), progress percentage, and notes. References `students(id)` and `courses(id)`.
+## 10. Future Enhancements
+- Materialised reporting tables (monthly revenue snapshots, instructor utilisation) for faster dashboards.
+- Optional `vehicle_service_logs` child table to track maintenance history in more detail.
+- JSON column for `communications` to store templated payload metadata and delivery receipts.
+- Partition `audit_trail` by year to keep active table lean in high-volume deployments.
 
-### enrollment_requests
-Captures self-service enrollment submissions from prospective or existing students. Stores preferred schedule, optional instructor, freeform notes, and review metadata (status, decision timestamps, reviewer, admin notes). Links to `students`, `courses`, and optionally `instructors` and `users` (decision maker).
-
-### vehicles
-Fleet registry with transmission type, plate number, VIN, branch, availability status, service history dates, and notes.
-
-### schedules
-Lesson/exam bookings referencing `enrollments`, `instructors`, `vehicles`, and `branches`. Enforces conflict detection (instructor/vehicle/time). Tracks start/end times, event type, status, lesson topic, notes, and reminder flag.
-
-### invoices & invoice_items
-Financial documents generated per enrolment. Header totals (subtotal, GST, total) with line items for each charge. `invoice_items` holds description, quantity, unit price, and row total.
-
-### payments
-Receipts recorded against invoices including amount, date, method, reference, notes, and user who recorded the payment.
-
-### reminders
-Stores automated reminder jobs (invoice, schedule). Columns: related_type, related_id, recipient_user_id, channel, reminder_type, message, send_on, status.
-
-### notifications
-In-app alerts for individual users. Contains title, message, level (info|success|warning|danger), is_read flag, timestamps.
-
-### communications & communication_recipients
-Broadcast or targeted messages captured for audit. Header row includes sender, audience scope, channel, subject, message. Recipients table normalises user targets.
-
-### documents
-Uploaded files metadata (user_id, file_name, file_path, mime_type, file_size, category, notes).
-
-### notes
-Qualitative notes per entity (student, instructor, staff) linked to author user and timestamped.
-
-### audit_trail
-Immutable log of key actions (user_id, action, entity_type, entity_id, details, created_at).
-
-## Referential Integrity Highlights
-- `students.user_id`, `instructors.user_id`, `staff_profiles.user_id` all cascade on delete to preserve data integrity when a user is removed (soft delete controlled via status instead).
-- `enrollments.student_id` references `students.id`; deleting a student cascades to enrolments, schedules, invoices, and reminders.
-- `schedules.vehicle_id` is nullable to allow bookings without vehicle assignment.
-- `payments.invoice_id` cascades, ensuring orphan payments cannot exist.
-
-## Indexing Strategy
-- Unique indexes on `users.email`, `vehicles.plate_number`, `invoices.invoice_number`.
-- Secondary indexes on foreign key columns (e.g., `schedules` on `instructor_id`, `vehicle_id`, `scheduled_date`).
-- Composite index on `reminders (status, send_on)` for quick due reminder retrieval.
-
-## Sample Data
-Seed data in `sql/database.sql` covers:
-- Foundational branches (CBD, Bayside, Northern Suburbs).
-- Admin, staff, instructor, and student accounts with hashed passwords.
-- Courses (Learner Package, Overseas Licence Conversion, Test Day Intensive).
-- Fleet vehicles with service schedules.
-- Enrolments, schedules, invoices, payments, reminders, notifications for demonstration.
-
-## Import Instructions
-1. Start MySQL/MariaDB (XAMPP).  
-2. Create database `origin_driving_school`.  
-3. Use phpMyAdmin or `mysql` CLI to run `sql/database.sql`.  
-4. Update `app/config.php` if your MySQL credentials differ from the defaults.
-
-The schema is designed for transactional integrity, minimal duplication, and rapid querying by common administrative workflows.
+Refer to [`sql/database.sql`](../sql/database.sql) for the authoritative schema definition and seed data.
