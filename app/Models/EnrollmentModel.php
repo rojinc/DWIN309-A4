@@ -45,6 +45,17 @@ class EnrollmentModel extends Model
     }
 
     /**
+     * Finds an enrolment for a specific student and course combination.
+     */
+    public function findByStudentAndCourse(int $studentId, int $courseId): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM enrollments WHERE student_id = :student_id AND course_id = :course_id LIMIT 1');
+        $stmt->execute(['student_id' => $studentId, 'course_id' => $courseId]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    /**
      * Creates a new enrolment record.
      */
     public function create(array $data): int

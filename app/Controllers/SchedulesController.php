@@ -10,6 +10,7 @@ use App\Models\InstructorModel;
 use App\Models\VehicleModel;
 use App\Models\BranchModel;
 use App\Models\StudentModel;
+use App\Models\CourseModel;
 use App\Services\ReminderService;
 use App\Services\AuditService;
 
@@ -24,6 +25,7 @@ class SchedulesController extends Controller
     private VehicleModel $vehicles;
     private BranchModel $branches;
     private StudentModel $students;
+    private CourseModel $courses;
     private ReminderService $reminders;
     private AuditService $audit;
 
@@ -39,6 +41,7 @@ class SchedulesController extends Controller
         $this->vehicles = new VehicleModel();
         $this->branches = new BranchModel();
         $this->students = new StudentModel();
+        $this->courses = new CourseModel();
         $this->reminders = new ReminderService();
         $this->audit = new AuditService();
     }
@@ -59,7 +62,8 @@ class SchedulesController extends Controller
             'year' => $year,
             'month' => $month,
             'canManage' => $canManage,
-            'enrollments' => $canManage ? $this->enrollments->all() : [],
+            'students' => $canManage ? $this->students->all() : [],
+            'courses' => $canManage ? $this->courses->all() : [],
             'instructors' => $canManage ? $this->instructors->all() : [],
             'vehicles' => $canManage ? $this->vehicles->all() : [],
             'branches' => $canManage ? $this->branches->all() : [],
@@ -76,7 +80,8 @@ class SchedulesController extends Controller
         $token = Csrf::token('schedule_create');
         $this->render('schedules/create', [
             'pageTitle' => 'Book Lesson',
-            'enrollments' => $this->enrollments->all(),
+            'students' => $this->students->all(),
+            'courses' => $this->courses->all(),
             'instructors' => $this->instructors->all(),
             'vehicles' => $this->vehicles->all(),
             'branches' => $this->branches->all(),
@@ -99,7 +104,8 @@ class SchedulesController extends Controller
         }
 
         $validation = Validation::make($_POST, [
-            'enrollment_id' => ['required'],
+            'student_id' => ['required'],
+            'course_id' => ['required'],
             'instructor_id' => ['required'],
             'scheduled_date' => ['required', 'date'],
             'start_time' => ['required', 'time'],
@@ -111,10 +117,15 @@ class SchedulesController extends Controller
         }
 
         $data = $validation['data'];
+        $studentId = (int) $data['student_id'];
+        $courseId = (int) $data['course_id'];
+        $instructorId = (int) $data['instructor_id'];
+
         try {
+            $enrollmentId = $this->resolveEnrollmentId($studentId, $courseId);
             $scheduleId = $this->schedules->create([
-                'enrollment_id' => (int) $data['enrollment_id'],
-                'instructor_id' => (int) $data['instructor_id'],
+                'enrollment_id' => $enrollmentId,
+                'instructor_id' => $instructorId,
                 'vehicle_id' => post('vehicle_id') ? (int) post('vehicle_id') : null,
                 'branch_id' => post('branch_id') ? (int) post('branch_id') : null,
                 'event_type' => post('event_type', 'lesson'),
@@ -131,7 +142,7 @@ class SchedulesController extends Controller
             $this->redirect(route('schedules', 'create'));
         }
 
-        $studentUserId = $this->resolveStudentUserId((int) $data['enrollment_id']);
+        $studentUserId = $this->resolveStudentUserId($enrollmentId);
         if ($studentUserId) {
             $this->reminders->queue([
                 'related_type' => 'schedule',
@@ -163,4 +174,27 @@ class SchedulesController extends Controller
         $student = $this->students->find((int) ($enrollment['student_id'] ?? 0));
         return (int) ($student['user_id'] ?? 0);
     }
+
+    /**
+     * Ensures a student-course pairing has an enrolment for scheduling.
+     */
+    private function resolveEnrollmentId(int $studentId, int $courseId): int
+    {
+        $enrollment = $this->enrollments->findByStudentAndCourse($studentId, $courseId);
+        if ($enrollment) {
+            return (int) $enrollment['id'];
+        }
+
+        return $this->enrollments->create([
+            'student_id' => $studentId,
+            'course_id' => $courseId,
+            'start_date' => date('Y-m-d'),
+            'status' => 'active',
+            'progress_percentage' => 0,
+            'notes' => 'Auto-created from quick booking',
+        ]);
+    }
 }
+
+
+

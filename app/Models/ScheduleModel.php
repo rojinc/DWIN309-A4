@@ -20,10 +20,10 @@ class ScheduleModel extends Model
                 INNER JOIN enrollments e ON e.id = sch.enrollment_id
                 INNER JOIN students st ON st.id = e.student_id
                 INNER JOIN users us ON us.id = st.user_id
+                INNER JOIN courses c ON c.id = e.course_id
                 INNER JOIN instructors ins ON ins.id = sch.instructor_id
                 INNER JOIN users ui ON ui.id = ins.user_id
                 LEFT JOIN vehicles v ON v.id = sch.vehicle_id
-                INNER JOIN courses c ON c.id = e.course_id
                 WHERE sch.scheduled_date >= CURDATE()
                 ORDER BY sch.scheduled_date, sch.start_time
                 LIMIT :limit';
@@ -43,6 +43,7 @@ class ScheduleModel extends Model
                 INNER JOIN enrollments e ON e.id = sch.enrollment_id
                 INNER JOIN students st ON st.id = e.student_id
                 INNER JOIN users us ON us.id = st.user_id
+                INNER JOIN courses c ON c.id = e.course_id
                 WHERE sch.instructor_id = :instructor_id
                 ORDER BY sch.scheduled_date DESC';
         $stmt = $this->db->prepare($sql);
@@ -163,11 +164,12 @@ class ScheduleModel extends Model
     {
         $start = sprintf('%04d-%02d-01', $year, $month);
         $end = date('Y-m-t', strtotime($start));
-        $sql = 'SELECT sch.*, CONCAT(us.first_name, " ", us.last_name) AS student_name, CONCAT(ui.first_name, " ", ui.last_name) AS instructor_name
+        $sql = 'SELECT sch.*, c.title AS course_title, CONCAT(us.first_name, " ", us.last_name) AS student_name, CONCAT(ui.first_name, " ", ui.last_name) AS instructor_name
                 FROM schedules sch
                 INNER JOIN enrollments e ON e.id = sch.enrollment_id
                 INNER JOIN students st ON st.id = e.student_id
                 INNER JOIN users us ON us.id = st.user_id
+                INNER JOIN courses c ON c.id = e.course_id
                 INNER JOIN instructors ins ON ins.id = sch.instructor_id
                 INNER JOIN users ui ON ui.id = ins.user_id
                 WHERE sch.scheduled_date BETWEEN :start AND :end';
@@ -228,6 +230,10 @@ class ScheduleModel extends Model
     }
 
 }
+
+
+
+
 
 
 

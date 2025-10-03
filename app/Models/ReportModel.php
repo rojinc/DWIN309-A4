@@ -28,6 +28,95 @@ class ReportModel extends Model
     }
 
     /**
+     * Summarises key counts for instructor dashboards.
+     */
+    public function instructorDashboardSummary(int $instructorId): array
+    {
+        $studentsStmt = $this->db->prepare('SELECT COUNT(DISTINCT e.student_id) AS total_students
+                                             FROM schedules sch
+                                             INNER JOIN enrollments e ON e.id = sch.enrollment_id
+                                             WHERE sch.instructor_id = :instructor_id');
+        $studentsStmt->execute(['instructor_id' => $instructorId]);
+        $students = (int) ($studentsStmt->fetch()['total_students'] ?? 0);
+
+        $lessonsStmt = $this->db->prepare('SELECT COUNT(*) AS upcoming
+                                            FROM schedules
+                                            WHERE instructor_id = :instructor_id AND scheduled_date >= CURDATE()');
+        $lessonsStmt->execute(['instructor_id' => $instructorId]);
+        $upcoming = (int) ($lessonsStmt->fetch()['upcoming'] ?? 0);
+
+        $overdueStmt = $this->db->prepare('SELECT COUNT(*) AS overdue
+                                            FROM invoices i
+                                            INNER JOIN enrollments e ON e.id = i.enrollment_id
+                                            WHERE i.due_date < CURDATE()
+                                              AND i.status <> "paid"
+                                              AND e.id IN (
+                                                  SELECT DISTINCT sch.enrollment_id
+                                                  FROM schedules sch
+                                                  WHERE sch.instructor_id = :instructor_id
+                                              )');
+        $overdueStmt->execute(['instructor_id' => $instructorId]);
+        $overdue = (int) ($overdueStmt->fetch()['overdue'] ?? 0);
+
+        return [
+            'students' => $students,
+            'upcoming_lessons' => $upcoming,
+            'overdue_invoices' => $overdue,
+            'fleet_available' => null,
+            'fleet_total' => null,
+        ];
+    }
+
+    /**
+     * Calculates total revenue attributed to an instructor's schedules.
+     */
+    public function instructorRevenue(int $instructorId): float
+    {
+        $stmt = $this->db->prepare('SELECT SUM(p.amount) AS total
+                                     FROM payments p
+                                     INNER JOIN invoices i ON i.id = p.invoice_id
+                                     WHERE i.enrollment_id IN (
+                                         SELECT DISTINCT sch.enrollment_id
+                                         FROM schedules sch
+                                         WHERE sch.instructor_id = :instructor_id
+                                     )');
+        $stmt->execute(['instructor_id' => $instructorId]);
+        return (float) ($stmt->fetch()['total'] ?? 0.0);
+    }
+
+    /**
+     * Summaries used for student dashboards.
+     */
+    public function studentDashboardSummary(int $studentId): array
+    {
+        $enrolmentsStmt = $this->db->prepare('SELECT COUNT(*) AS total FROM enrollments WHERE student_id = :student_id');
+        $enrolmentsStmt->execute(['student_id' => $studentId]);
+        $enrolments = (int) ($enrolmentsStmt->fetch()['total'] ?? 0);
+
+        $upcomingStmt = $this->db->prepare('SELECT COUNT(*) AS upcoming
+                                            FROM schedules sch
+                                            INNER JOIN enrollments e ON e.id = sch.enrollment_id
+                                            WHERE e.student_id = :student_id AND sch.scheduled_date >= CURDATE()');
+        $upcomingStmt->execute(['student_id' => $studentId]);
+        $upcoming = (int) ($upcomingStmt->fetch()['upcoming'] ?? 0);
+
+        $overdueStmt = $this->db->prepare('SELECT COUNT(*) AS overdue
+                                            FROM invoices i
+                                            INNER JOIN enrollments e ON e.id = i.enrollment_id
+                                            WHERE e.student_id = :student_id AND i.due_date < CURDATE() AND i.status <> "paid"');
+        $overdueStmt->execute(['student_id' => $studentId]);
+        $overdue = (int) ($overdueStmt->fetch()['overdue'] ?? 0);
+
+        return [
+            'students' => $enrolments,
+            'upcoming_lessons' => $upcoming,
+            'overdue_invoices' => $overdue,
+            'fleet_available' => null,
+            'fleet_total' => null,
+        ];
+    }
+
+    /**
      * Summarises revenue by month for charting.
      */
     public function monthlyRevenue(int $months = 6): array

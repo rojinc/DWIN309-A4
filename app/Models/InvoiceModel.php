@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use App\Core\Model;
+use PDO;
 
 /**
  * Provides persistence operations for invoices and their line items.
@@ -18,6 +19,44 @@ class InvoiceModel extends Model
                 INNER JOIN courses c ON c.id = e.course_id
                 ORDER BY i.issue_date DESC';
         $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
+
+    public function forInstructor(int $instructorId, int $limit = 5): array
+    {
+        $sql = 'SELECT i.*, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.id AS student_user_id, c.title AS course_title
+                FROM invoices i
+                INNER JOIN enrollments e ON e.id = i.enrollment_id
+                INNER JOIN students s ON s.id = e.student_id
+                INNER JOIN users u ON u.id = s.user_id
+                INNER JOIN courses c ON c.id = e.course_id
+                WHERE e.id IN (
+                    SELECT DISTINCT sch.enrollment_id FROM schedules sch WHERE sch.instructor_id = :instructor_id
+                )
+                ORDER BY i.issue_date DESC
+                LIMIT :limit';
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':instructor_id', $instructorId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    public function forStudent(int $studentId, int $limit = 5): array
+    {
+        $sql = 'SELECT i.*, CONCAT(u.first_name, " ", u.last_name) AS student_name, u.id AS student_user_id, c.title AS course_title
+                FROM invoices i
+                INNER JOIN enrollments e ON e.id = i.enrollment_id
+                INNER JOIN students s ON s.id = e.student_id
+                INNER JOIN users u ON u.id = s.user_id
+                INNER JOIN courses c ON c.id = e.course_id
+                WHERE e.student_id = :student_id
+                ORDER BY i.issue_date DESC
+                LIMIT :limit';
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':student_id', $studentId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
         return $stmt->fetchAll();
     }
 

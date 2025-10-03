@@ -69,28 +69,39 @@ class ApischedulesController extends Controller
             $this->jsonError('Invalid request method.', 405);
             return;
         }
+
         $payload = json_decode(file_get_contents('php://input'), true) ?? [];
         $payload['csrf_token'] = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
         if (!Csrf::verify('schedule_ajax', $payload['csrf_token'])) {
-            $this->jsonError('CSRF validation failed.', 419);
+            $newToken = Csrf::token('schedule_ajax');
+            $this->jsonError('CSRF validation failed.', 419, ['csrf_token' => $newToken]);
             return;
         }
+
+        $newToken = Csrf::token('schedule_ajax');
         $validation = Validation::make($payload, [
-            'enrollment_id' => ['required'],
+            'student_id' => ['required'],
+            'course_id' => ['required'],
             'instructor_id' => ['required'],
             'scheduled_date' => ['required', 'date'],
             'start_time' => ['required', 'time'],
             'end_time' => ['required', 'time'],
         ]);
         if ($validation['errors']) {
-            $this->jsonError(implode(' ', $validation['errors']), 422);
+            $this->jsonError(implode(' ', $validation['errors']), 422, ['csrf_token' => $newToken]);
             return;
         }
+
         $data = $validation['data'];
+        $studentId = (int) $data['student_id'];
+        $courseId = (int) $data['course_id'];
+        $instructorId = (int) $data['instructor_id'];
+
         try {
+            $enrollmentId = $this->resolveEnrollmentId($studentId, $courseId);
             $scheduleId = $this->schedules->create([
-                'enrollment_id' => (int) $data['enrollment_id'],
-                'instructor_id' => (int) $data['instructor_id'],
+                'enrollment_id' => $enrollmentId,
+                'instructor_id' => $instructorId,
                 'vehicle_id' => !empty($payload['vehicle_id']) ? (int) $payload['vehicle_id'] : null,
                 'branch_id' => !empty($payload['branch_id']) ? (int) $payload['branch_id'] : null,
                 'event_type' => $payload['event_type'] ?? 'lesson',
@@ -103,12 +114,17 @@ class ApischedulesController extends Controller
                 'reminder_sent' => 0,
             ]);
         } catch (\RuntimeException $exception) {
-            $this->jsonError($exception->getMessage(), 409);
+            $this->jsonError($exception->getMessage(), 409, ['csrf_token' => $newToken]);
             return;
         }
-        $this->queueReminder((int) $data['enrollment_id'], $scheduleId, $data);
+
+        $this->queueReminder($enrollmentId, $scheduleId, $data);
         $this->audit->log($this->auth->user()['id'] ?? null, 'schedule_created', 'schedule', $scheduleId);
-        $this->json(['message' => 'Schedule created successfully.', 'id' => $scheduleId], 201);
+        $this->json([
+            'message' => 'Schedule created successfully.',
+            'id' => $scheduleId,
+            'csrf_token' => $newToken
+        ], 201);
     }
 
     public function checkConflictAction(): void
@@ -125,11 +141,39 @@ class ApischedulesController extends Controller
             $this->jsonError(implode(' ', $validation['errors']), 422);
             return;
         }
+
         $data = $validation['data'];
         $vehicleId = isset($payload['vehicle_id']) && $payload['vehicle_id'] !== '' ? (int) $payload['vehicle_id'] : null;
         $ignoreId = isset($payload['ignore_id']) ? (int) $payload['ignore_id'] : null;
-        $conflict = $this->schedules->hasConflict((int) $data['instructor_id'], $data['scheduled_date'], $data['start_time'], $data['end_time'], $vehicleId, $ignoreId);
+        $conflict = $this->schedules->hasConflict(
+            (int) $data['instructor_id'],
+            $data['scheduled_date'],
+            $data['start_time'],
+            $data['end_time'],
+            $vehicleId,
+            $ignoreId
+        );
         $this->json(['conflict' => $conflict]);
+    }
+
+    /**
+     * Ensures a student-course pairing has an enrolment ready for scheduling.
+     */
+    private function resolveEnrollmentId(int $studentId, int $courseId): int
+    {
+        $enrollment = $this->enrollments->findByStudentAndCourse($studentId, $courseId);
+        if ($enrollment) {
+            return (int) $enrollment['id'];
+        }
+
+        return $this->enrollments->create([
+            'student_id' => $studentId,
+            'course_id' => $courseId,
+            'start_date' => date('Y-m-d'),
+            'status' => 'active',
+            'progress_percentage' => 0,
+            'notes' => 'Auto-created from quick booking',
+        ]);
     }
 
     private function queueReminder(int $enrollmentId, int $scheduleId, array $data): void
@@ -138,6 +182,7 @@ class ApischedulesController extends Controller
         if (!$studentUserId) {
             return;
         }
+
         $this->reminders->queue([
             'related_type' => 'schedule',
             'related_id' => $scheduleId,
@@ -156,6 +201,7 @@ class ApischedulesController extends Controller
         if (!$enrollment) {
             return 0;
         }
+
         $studentModel = new StudentModel();
         $student = $studentModel->find((int) $enrollment['student_id']);
         return (int) ($student['user_id'] ?? 0);
@@ -169,8 +215,9 @@ class ApischedulesController extends Controller
         exit;
     }
 
-    private function jsonError(string $message, int $status): void
+    private function jsonError(string $message, int $status, array $extra = []): void
     {
-        $this->json(['error' => $message], $status);
+        $this->json(array_merge(['error' => $message], $extra), $status);
     }
 }
+

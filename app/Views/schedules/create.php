@@ -1,13 +1,29 @@
+<?php
+$students = $students ?? [];
+$courses = $courses ?? [];
+$instructors = $instructors ?? [];
+$vehicles = $vehicles ?? [];
+$branches = $branches ?? [];
+?>
 <section class="card">
     <h1>Book Lesson or Exam</h1>
     <form method="post" action="<?= route('schedules', 'store'); ?>" class="form-grid">
-        <input type="hidden" name="csrf_token" value="<?= e(); ?>">
+        <input type="hidden" name="csrf_token" value="<?= e($csrfToken ?? ''); ?>">
         <label>
-            <span>Enrollment</span>
-            <select name="enrollment_id" required>
-                <option value="">Select student &amp; course</option>
-                <?php foreach ( as ): ?>
-                    <option value="<?= e(['id']); ?>"><?= e(['first_name'] . ' ' . ['last_name'] . ' – ' . ['course_title']); ?></option>
+            <span>Student</span>
+            <select name="student_id" required>
+                <option value="">Select student</option>
+                <?php foreach ($students as $student): ?>
+                    <option value="<?= e($student['id']); ?>"><?= e($student['first_name'] . ' ' . $student['last_name']); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label>
+            <span>Course</span>
+            <select name="course_id" required>
+                <option value="">Select course</option>
+                <?php foreach ($courses as $course): ?>
+                    <option value="<?= e($course['id']); ?>"><?= e($course['title']); ?> (<?= e($course['lesson_count']); ?> lessons)</option>
                 <?php endforeach; ?>
             </select>
         </label>
@@ -15,8 +31,8 @@
             <span>Instructor</span>
             <select name="instructor_id" required>
                 <option value="">Select instructor</option>
-                <?php foreach ( as ): ?>
-                    <option value="<?= e(['id']); ?>"><?= e(['first_name'] . ' ' . ['last_name']); ?></option>
+                <?php foreach ($instructors as $instructor): ?>
+                    <option value="<?= e($instructor['id']); ?>"><?= e($instructor['first_name'] . ' ' . $instructor['last_name']); ?></option>
                 <?php endforeach; ?>
             </select>
         </label>
@@ -24,8 +40,8 @@
             <span>Vehicle</span>
             <select name="vehicle_id">
                 <option value="">Assign vehicle (optional)</option>
-                <?php foreach ( as ): ?>
-                    <option value="<?= e(['id']); ?>"><?= e(['name']); ?> (<?= e(['transmission']); ?>)</option>
+                <?php foreach ($vehicles as $vehicle): ?>
+                    <option value="<?= e($vehicle['id']); ?>"><?= e($vehicle['name']); ?> (<?= e($vehicle['transmission']); ?>)</option>
                 <?php endforeach; ?>
             </select>
         </label>
@@ -33,8 +49,8 @@
             <span>Branch</span>
             <select name="branch_id">
                 <option value="">Select branch</option>
-                <?php foreach ( as ): ?>
-                    <option value="<?= e(['id']); ?>"><?= e(['name']); ?></option>
+                <?php foreach ($branches as $branch): ?>
+                    <option value="<?= e($branch['id']); ?>"><?= e($branch['name']); ?></option>
                 <?php endforeach; ?>
             </select>
         </label>

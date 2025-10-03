@@ -51,6 +51,29 @@ class StudentModel extends Model
     }
 
     /**
+     * Returns students who have scheduled lessons with the given instructor.
+     */
+    public function forInstructor(int $instructorId, ?string $term = null): array
+    {
+        $sql = 'SELECT DISTINCT s.*, u.first_name, u.last_name, u.email, u.phone, b.name AS branch_name
+                FROM schedules sch
+                INNER JOIN enrollments e ON e.id = sch.enrollment_id
+                INNER JOIN students s ON s.id = e.student_id
+                INNER JOIN users u ON u.id = s.user_id
+                LEFT JOIN branches b ON b.id = s.branch_id
+                WHERE sch.instructor_id = :instructor_id';
+        $params = ['instructor_id' => $instructorId];
+        if ($term !== null && $term !== '') {
+            $sql .= ' AND (u.first_name LIKE :term OR u.last_name LIKE :term OR s.license_number LIKE :term)';
+            $params['term'] = '%' . $term . '%';
+        }
+        $sql .= ' ORDER BY u.first_name';
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Creates a student profile and returns the new identifier.
      */
     public function create(array $data): int

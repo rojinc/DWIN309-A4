@@ -6,6 +6,11 @@ $user = $auth->user();
 $monthDate = new DateTime(sprintf('%04d-%02d-01', $year, $month));
 $prev = (clone $monthDate)->modify('-1 month');
 $next = (clone $monthDate)->modify('+1 month');
+$students = $students ?? [];
+$courses = $courses ?? [];
+$instructors = $instructors ?? [];
+$vehicles = $vehicles ?? [];
+$branches = $branches ?? [];
 ?>
 <section class="card schedule-dashboard"
         data-year="<?= e($year); ?>"
@@ -53,12 +58,23 @@ $next = (clone $monthDate)->modify('+1 month');
         <form id="schedule-form" class="form-grid">
             <input type="hidden" name="csrf_token" value="<?= e($csrfAjaxToken); ?>">
             <label>
-                <span>Enrollment</span>
-                <select name="enrollment_id" required>
-                    <option value="">Select student &amp; course</option>
-                    <?php foreach ($enrollments as $enrollment): ?>
-                        <option value="<?= e($enrollment['id']); ?>">
-                            <?= e($enrollment['first_name'] . ' ' . $enrollment['last_name'] . ' - ' . $enrollment['course_title']); ?>
+                <span>Student</span>
+                <select name="student_id" required>
+                    <option value="">Select student</option>
+                    <?php foreach ($students as $student): ?>
+                        <option value="<?= e($student['id']); ?>">
+                            <?= e($student['first_name'] . ' ' . $student['last_name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label>
+                <span>Course</span>
+                <select name="course_id" required>
+                    <option value="">Select course</option>
+                    <?php foreach ($courses as $course): ?>
+                        <option value="<?= e($course['id']); ?>">
+                            <?= e($course['title']); ?> (<?= e($course['lesson_count']); ?> lessons)
                         </option>
                     <?php endforeach; ?>
                 </select>

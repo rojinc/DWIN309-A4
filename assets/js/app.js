@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
     highlightActiveNav();
     renderRevenueChart();
-    initScheduleCalendar();\n    initInvoiceEditor();
+    initScheduleCalendar();
+    initInvoiceEditor();
 });
 
 function highlightActiveNav() {
@@ -78,7 +79,7 @@ function initScheduleCalendar() {
     const upcomingEl = document.getElementById('schedule-upcoming');
     const navButtons = container.querySelectorAll('.schedule-nav');
     const canManage = container.dataset.canManage === '1';
-    const csrfToken = container.dataset.csrf || '';
+    let csrfToken = container.dataset.csrf || '';
     const eventsEndpoint = container.dataset.eventsEndpoint;
     const conflictEndpoint = container.dataset.conflictEndpoint;
     const createEndpoint = container.dataset.createEndpoint;
@@ -103,7 +104,20 @@ function initScheduleCalendar() {
     var form = null;
     var conflictMessage = null;
 
-    if (canManage) {
+    const updateCsrfToken = function (token) {
+        if (!token) {
+            return;
+        }
+        csrfToken = token;
+        container.dataset.csrf = token;
+        if (form) {
+            var csrfField = form.querySelector('[name="csrf_token"]');
+            if (csrfField) {
+                csrfField.value = token;
+            }
+        }
+    };
+if (canManage) {
         modal = document.getElementById('schedule-modal');
         modalClose = document.getElementById('schedule-modal-close');
         modalCancel = document.getElementById('schedule-modal-cancel');
@@ -136,7 +150,7 @@ function initScheduleCalendar() {
                 form.querySelector('[name="end_time"]').value = end;
             }
             modal.removeAttribute('hidden');
-            form.querySelector('[name="enrollment_id"]').focus();
+            form.querySelector('[name="student_id"]').focus();
         };
 
         modalOpen && modalOpen.addEventListener('click', function () {
@@ -176,20 +190,7 @@ function initScheduleCalendar() {
             }
 
             try {
-                const response = await fetch(createEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken
-                    },
-                    body: JSON.stringify(payload)
-                });
-                const json = await response.json();
-                if (!response.ok) {
-                    showFormMessage(json.error || 'Unable to create schedule.', true);
-                    return;
-                }
-                showFormMessage(json.message || 'Schedule created.', false);
+                const response = await fetch(createEndpoint, {                    method: 'POST',                    headers: {                        'Content-Type': 'application/json',                        'X-CSRF-TOKEN': csrfToken                    },                    body: JSON.stringify(payload)                });                const json = await response.json();                if (json && json.csrf_token) {                    updateCsrfToken(json.csrf_token);                }                if (!response.ok) {                    showFormMessage(json.error || 'Unable to create schedule.', true);                    return;                }                showFormMessage(json.message || 'Schedule created.', false);
                 loadCalendar(currentYear, currentMonth);
                 setTimeout(function () {
                     closeModal();
@@ -222,7 +223,7 @@ function initScheduleCalendar() {
         if (!calendarEl || !upcomingEl) {
             return;
         }
-        calendarEl.innerHTML = '<div class="calendar-loading">Loading…</div>';
+        calendarEl.innerHTML = '<div class="calendar-loading">Loadingï¿½</div>';
         upcomingEl.innerHTML = '';
         try {
             const params = new URLSearchParams({ year: year, month: month });
@@ -257,7 +258,7 @@ function renderCalendar(calendarEl, year, month, events, canManage) {
                 const isToday = today.getFullYear() === year && today.getMonth() + 1 === month && today.getDate() === day;
                 const dayEvents = groupedEvents.get(dateKey) || [];
                 const eventItems = dayEvents.map(function (event) {
-                    return '<li>' + escapeHtml(formatTimeRange(event.start, event.end)) + ' · ' + escapeHtml(event.student) + '</li>';
+                    return '<li>' + escapeHtml(formatTimeRange(event.start, event.end)) + ' ï¿½ ' + escapeHtml(event.student) + '</li>';
                 }).join('');
                 const manageClass = canManage ? ' calendar-cell-manage' : '';
                 const manageData = canManage ? ' data-date="' + escapeAttr(dateKey) + '"' : '';
@@ -293,7 +294,7 @@ function renderUpcoming(container, events) {
     container.innerHTML = upcoming.map(function (event) {
         const date = event.startDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short', weekday: 'short' });
         const time = event.startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-        return '<li><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(date) + ' · ' + escapeHtml(time) + '</span></li>';
+        return '<li><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(date) + ' ï¿½ ' + escapeHtml(time) + '</span></li>';
     }).join('');
 }
 
@@ -331,7 +332,7 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
     return escapeHtml(value).replace(/"/g, '&quot;');
-}\nfunction initInvoiceEditor() {
+}function initInvoiceEditor() {
     const form = document.getElementById('invoice-edit-form');
     if (!form) {
         return;

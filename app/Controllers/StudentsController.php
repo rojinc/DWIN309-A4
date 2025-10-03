@@ -34,6 +34,7 @@ class StudentsController extends Controller
     private DocumentModel $documents;
     private NoteModel $notes;
     private ScheduleModel $schedules;
+    private InstructorModel $instructors;
     private AuditService $audit;
     private NotificationService $notifications;
     private ReminderService $reminders;
@@ -51,6 +52,7 @@ class StudentsController extends Controller
         $this->documents = new DocumentModel();
         $this->notes = new NoteModel();
         $this->schedules = new ScheduleModel();
+        ->instructors = new InstructorModel();
         $this->audit = new AuditService();
         $this->notifications = new NotificationService();
         $this->reminders = new ReminderService();
@@ -60,12 +62,34 @@ class StudentsController extends Controller
     public function indexAction(): void
     {
         $this->requireRole(['admin', 'staff', 'instructor']);
+        $user = $this->auth->user();
+        $role = $user['role'] ?? null;
         $term = trim((string) ($_GET['q'] ?? ''));
-        $students = $term ? $this->students->search($term) : $this->students->all();
+        if ($role === 'instructor') {
+            $instructor = $this->instructors->findByUserId((int) ($user['id'] ?? 0));
+            $instructorId = (int) ($instructor['id'] ?? 0);
+            $students = $instructorId > 0
+                ? $this->students->forInstructor($instructorId, $term === '' ? null : $term)
+                : [];
+        } else {
+            $students = $term === '' ? $this->students->all() : $this->students->search($term);
+        }
         $this->render('students/index', [
             'pageTitle' => 'Students',
             'students' => $students,
             'search' => $term,
+        ]);
+    }
+        \->render('students/index', [
+            'pageTitle' => 'Students',
+            'students' => \,
+            'search' => \,
+        ]);
+    }
+        \->render('students/index', [
+            'pageTitle' => 'Students',
+            'students' => \,
+            'search' => \,
         ]);
     }
 
@@ -406,3 +430,8 @@ class StudentsController extends Controller
         ]);
     }
 }
+
+
+
+
+
