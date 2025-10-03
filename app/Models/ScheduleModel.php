@@ -12,7 +12,7 @@ class ScheduleModel extends Model
     /**
      * Returns all upcoming schedule entries with contextual information.
      */
-    public function upcoming(int $limit = 20): array
+    public function upcoming(int $limit = 20, ?int $instructorId = null, ?int $studentId = null): array
     {
         $sql = 'SELECT sch.*, c.title AS course_title, CONCAT(us.first_name, " ", us.last_name) AS student_name,
                        CONCAT(ui.first_name, " ", ui.last_name) AS instructor_name, v.name AS vehicle_name
@@ -24,15 +24,25 @@ class ScheduleModel extends Model
                 INNER JOIN instructors ins ON ins.id = sch.instructor_id
                 INNER JOIN users ui ON ui.id = ins.user_id
                 LEFT JOIN vehicles v ON v.id = sch.vehicle_id
-                WHERE sch.scheduled_date >= CURDATE()
-                ORDER BY sch.scheduled_date, sch.start_time
-                LIMIT :limit';
+                WHERE sch.scheduled_date >= CURDATE()';
+        $params = [];
+        if ($instructorId !== null) {
+            $sql .= ' AND sch.instructor_id = :instructor_id';
+            $params['instructor_id'] = $instructorId;
+        }
+        if ($studentId !== null) {
+            $sql .= ' AND e.student_id = :student_id';
+            $params['student_id'] = $studentId;
+        }
+        $sql .= ' ORDER BY sch.scheduled_date, sch.start_time LIMIT :limit';
         $stmt = $this->db->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value, PDO::PARAM_INT);
+        }
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
     }
-
     /**
      * Retrieves schedule entries for a particular instructor.
      */
@@ -160,7 +170,7 @@ class ScheduleModel extends Model
     /**
      * Builds a calendar grid for a given month.
      */
-    public function calendar(int $year, int $month): array
+    public function calendar(int $year, int $month, ?int $instructorId = null, ?int $studentId = null): array
     {
         $start = sprintf('%04d-%02d-01', $year, $month);
         $end = date('Y-m-t', strtotime($start));
@@ -173,8 +183,20 @@ class ScheduleModel extends Model
                 INNER JOIN instructors ins ON ins.id = sch.instructor_id
                 INNER JOIN users ui ON ui.id = ins.user_id
                 WHERE sch.scheduled_date BETWEEN :start AND :end';
+        $params = ['start' => $start, 'end' => $end];
+        if ($instructorId !== null) {
+            $sql .= ' AND sch.instructor_id = :instructor_id';
+            $params['instructor_id'] = $instructorId;
+        }
+        if ($studentId !== null) {
+            $sql .= ' AND e.student_id = :student_id';
+            $params['student_id'] = $studentId;
+        }
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['start' => $start, 'end' => $end]);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value, in_array($key, ['start', 'end'], true) ? PDO::PARAM_STR : PDO::PARAM_INT);
+        }
+        $stmt->execute();
         $items = $stmt->fetchAll();
         $calendar = [];
         foreach ($items as $item) {
@@ -182,7 +204,6 @@ class ScheduleModel extends Model
         }
         return $calendar;
     }
-
     /**
      * Checks whether a proposed schedule conflicts with existing instructor or vehicle bookings.
      */
@@ -230,6 +251,8 @@ class ScheduleModel extends Model
     }
 
 }
+
+
 
 
 
