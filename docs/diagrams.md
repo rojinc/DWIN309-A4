@@ -4,48 +4,59 @@ This document consolidates the primary diagrams describing the Origin Driving Sc
 
 ## 1. Use Case Diagram
 ```mermaid
+---
+title: Primary Use Cases by Persona
+---
 usecaseDiagram
   actor Admin as "Administrator"
   actor Staff as "Operations Staff"
   actor Instructor
   actor Student
 
-  Admin -- (Manage Branches)
-  Admin -- (Configure Courses)
-  Admin -- (View Organisation KPIs)
-  Admin -- (Manage Staff Accounts)
-  Admin -- (Audit Sensitive Actions)
+  rectangle "Administration" {
+    Admin --> (Manage Branches)
+    Admin --> (Configure Courses)
+    Admin --> (View Organisation KPIs)
+    Admin --> (Manage Staff Accounts)
+    Admin --> (Audit Sensitive Actions)
+  }
 
-  Staff -- (Onboard Student)
-  Staff -- (Approve Enrolment Request)
-  Staff -- (Schedule Lesson)
-  Staff -- (Issue Invoice)
-  Staff -- (Record Payment)
-  Staff -- (Send Broadcast Communication)
-  Staff -- (Upload Document)
+  rectangle "Operations" {
+    Staff --> (Onboard Student)
+    Staff --> (Approve Enrolment Request)
+    Staff --> (Schedule Lesson)
+    Staff --> (Issue Invoice)
+    Staff --> (Record Payment)
+    Staff --> (Send Broadcast Communication)
+    Staff --> (Upload Document)
+  }
 
-  Instructor -- (View Assigned Schedule)
-  Instructor -- (Submit Availability)
-  Instructor -- (Record Lesson Outcome)
-  Instructor -- (View Assigned Students)
+  rectangle "Instruction" {
+    Instructor --> (View Assigned Schedule)
+    Instructor --> (Submit Availability)
+    Instructor --> (Record Lesson Outcome)
+    Instructor --> (View Assigned Students)
+  }
 
-  Student -- (Submit Enrolment Request)
-  Student -- (View Lesson Schedule)
-  Student -- (Review Invoice & Balance)
-  Student -- (Upload Identification Document)
-  Student -- (Receive Notifications)
+  rectangle "Learner Portal" {
+    Student --> (Submit Enrolment Request)
+    Student --> (View Lesson Schedule)
+    Student --> (Review Invoice & Balance)
+    Student --> (Upload Identification Document)
+    Student --> (Receive Notifications)
+  }
 ```
 
 ## 2. Logical Component Diagram
 ```mermaid
 flowchart LR
-  subgraph Presentation
-    V[Views (PHP Templates)]
-    JS[assets/js/app.js]
-    CSS[assets/css/style.css]
+  subgraph "Presentation Layer"
+    Views[PHP Templates]
+    AssetsJS[assets/js/app.js]
+    AssetsCSS[assets/css/style.css]
   end
 
-  subgraph Controllers
+  subgraph "Controller Layer"
     AuthC[AuthController]
     StudentsC[StudentsController]
     SchedulesC[SchedulesController]
@@ -53,7 +64,7 @@ flowchart LR
     DashboardC[DashboardController]
   end
 
-  subgraph Services
+  subgraph "Service Layer"
     AuthS[AuthService]
     ReminderS[ReminderService]
     NotificationS[NotificationService]
@@ -61,7 +72,7 @@ flowchart LR
     AuditS[AuditService]
   end
 
-  subgraph Models
+  subgraph "Data Layer"
     UserM[UserModel]
     StudentM[StudentModel]
     EnrollmentM[EnrollmentModel]
@@ -70,18 +81,20 @@ flowchart LR
     ReminderM[ReminderModel]
     NotificationM[NotificationModel]
     CommunicationM[CommunicationModel]
+    AuditM[AuditModel]
   end
 
   DB[(MySQL Database)]
-  Files[(Uploads / Logs)]
+  Files[(Uploads & Logs)]
 
-  V --> AuthC
-  V --> StudentsC
-  V --> SchedulesC
-  V --> InvoicesC
-  V --> DashboardC
-  JS --> SchedulesC
-  CSS --> V
+  Views --> AuthC
+  Views --> StudentsC
+  Views --> SchedulesC
+  Views --> InvoicesC
+  Views --> DashboardC
+  AssetsJS --> SchedulesC
+  AssetsCSS --> Views
+
   AuthC --> AuthS
   StudentsC --> ReminderS
   StudentsC --> NotificationS
@@ -92,13 +105,15 @@ flowchart LR
   InvoicesC --> OutboundS
   InvoicesC --> AuditS
   DashboardC --> ReminderS
+
   AuthS --> UserM
   ReminderS --> ReminderM
   ReminderS --> NotificationS
   ReminderS --> OutboundS
   NotificationS --> NotificationM
-  OutboundS --> Files
-  AuditS --> AuditTrail[(audit_trail table)]
+  OutboundS --> CommunicationM
+  AuditS --> AuditM
+
   StudentsC --> StudentM
   StudentsC --> EnrollmentM
   StudentsC --> ScheduleM
@@ -106,8 +121,18 @@ flowchart LR
   SchedulesC --> ScheduleM
   SchedulesC --> EnrollmentM
   InvoicesC --> InvoiceM
-  Models --> DB
 
+  UserM --> DB
+  StudentM --> DB
+  EnrollmentM --> DB
+  ScheduleM --> DB
+  InvoiceM --> DB
+  ReminderM --> DB
+  NotificationM --> DB
+  CommunicationM --> DB
+  AuditM --> DB
+
+  OutboundS --> Files
 ```
 
 ## 3. UML Class Diagram (Simplified)

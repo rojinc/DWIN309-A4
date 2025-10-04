@@ -30,22 +30,37 @@ Origin Driving School requires an internal system that unifies administrative ta
 The application is designed to operate on modest infrastructure while providing robust security (role-based access control, CSRF protection, sanitisation) and operational observability (audit trail, structured logging).
 
 ## Core Capabilities
-The feature catalogue is aligned to departmental workflows:
+The feature catalogue is aligned to departmental workflows. Each bullet summarises what the module delivers **and** the headline tasks it supports day to day.
 
-- **Authentication & RBAC:** Secure login/logout, password hashing, CSRF protection, per-role dashboards (admin, staff, instructor, student).
-- **Branch Administration:** Create and maintain branches, assign staff/instructors, view rosters.
-- **Student Management:** CRUD, search, upload documents, capture notes, progress summaries, and attach enrolments.
-- **Instructor Management:** Maintain accreditation details, track availability, view feedback summaries, manage assigned lessons.
-- **Course Catalogue:** Manage courses, pricing, required lessons, and instructor allocations.
-- **Enrolment Requests & Enrolments:** Accept self-service submissions, approve/decline requests, convert to structured enrolments.
-- **Scheduling:** Create, reschedule, and cancel lessons/exams with conflict detection across instructors and vehicles; integrate reminders.
-- **Fleet & Vehicle Maintenance:** Track vehicles, service logs, availability, and allocate to schedules.
-- **Invoicing & Payments:** Auto-generate invoices, manage invoice items, apply payments, print/export friendly views, manage overdue reminders.
-- **Notifications & Reminders:** In-app notifications, queued reminders (email/SMS/in-app) with acknowledgement tracking.
-- **Communications:** Broadcast messages with audience filters and delivery history.
-- **Reporting:** KPI dashboards, instructor performance, financial snapshots, export to CSV.
-- **Document Repository:** Secure storage for licences, assessments, and attachments under role-based access.
-- **Audit Trail:** Immutable log covering sensitive state changes for compliance and troubleshooting.
+- **Authentication & RBAC:** Secure login/logout, password hashing, CSRF protection, per-role dashboards (admin, staff, instructor, student), idle session expiry, password reset hooks.
+- **Branch Administration:** Create and maintain branches, assign staff/instructors, manage branch contact directory, view utilisation KPIs per branch.
+- **Student Management:** Full CRM capabilities (create/update profiles, search, filter by branch/course, upload documents, capture notes, view communications history, enrolment status tracking).
+- **Instructor Management:** Maintain accreditation/licensing, working-with-children checks, availability notes, and load indicators. Surface assigned students, upcoming lessons, and satisfaction scores.
+- **Course Catalogue:** Manage courses, pricing, required lesson counts, prerequisites, recommended instructors, and publish/retire lifecycle.
+- **Enrolment Requests & Enrolments:** Accept self-service submissions, triage queue, approve/decline with notes, convert to structured enrolments in one click, trigger welcome notifications and initial invoices.
+- **Scheduling:** Create, reschedule, and cancel lessons/exams with conflict detection across instructors/vehicles/branches; capture lesson outcomes; auto-queue reminders; surface weekly calendars and printable itineraries.
+- **Fleet & Vehicle Maintenance:** Track vehicles, registration, transmission, servicing history, odometer, branch allocation, and downtime windows. Link to schedules for utilisation and conflict warnings.
+- **Invoicing & Payments:** Auto-generate invoices per enrolment, manage line items, apply discounts, log payments, produce statements, export PDF-friendly layouts, monitor overdue balances, trigger reminder workflows.
+- **Notifications & Reminders:** In-app notifications, queued reminders (email/SMS/in-app), opt-in/out tracking, acknowledgement audit, cron-driven processing with delivery logs.
+- **Communications:** Broadcast announcements, segment audiences (branch/course/role), maintain delivery history, support attachments, and record follow-up tasks.
+- **Reporting:** KPI dashboards, instructor performance heatmaps, student progress drill-downs, revenue snapshots, export to CSV/Excel-ready tables.
+- **Document Repository:** Secure storage for licences, identification, assessments, medical clearance; enforce MIME/size policies; maintain audit trail of downloads and deletions.
+- **Audit Trail:** Immutable log covering sensitive state changes for compliance and troubleshooting with filters by module, user, entity, and time range.
+
+### Feature Breakdown by Persona
+| Persona | Daily Goals | Key Features & Functions |
+| --- | --- | --- |
+| **Administrator** | Maintain organisational settings, compliance, and KPIs. | Branch management, course catalogue, staff provisioning, KPI dashboards, audit trail review, policy/document distribution, global notifications. |
+| **Operations Staff** | Onboard students, coordinate schedules, manage payments. | Enrolment request pipeline, student CRM, scheduling calendar with conflict detection, invoice creation, payment recording, document uploads, outbound communications, reminder queue supervision. |
+| **Instructor** | Deliver lessons efficiently and keep availability up to date. | Personal dashboard, availability submission, assigned schedule view (daily/weekly), lesson outcome capture, student progress notes, acknowledgement of reminders/notifications. |
+| **Student/Learner** | Stay informed about lessons, payments, and compliance requirements. | Enrolment request form, lesson timetable, invoice & balance view, secure document upload, notification centre for reminders and announcements. |
+| **Finance Officer** | Reconcile revenue and chase overdue balances. | Invoice ageing reports, payment ledger, exportable statements, reminder escalation management, audit trail of financial adjustments. |
+
+### Service & Automation Highlights
+- **Reminder engine:** `ReminderService::queueScheduleReminder` / `::queueInvoiceReminder` schedule automated nudges; `::processDueReminders` runs via cron to deliver notifications and record outcomes.
+- **Audit hooks:** Critical controllers call `AuditService::record` with metadata snapshots to support compliance investigations.
+- **Outbound messaging:** `OutboundMessageService` normalises payloads for future SMTP/SMS integrations while providing structured logging today.
+- **Validation toolkit:** Shared helpers enforce complex validation rules (e.g., overlapping schedule detection, licence expiry checks, invoice balancing) ensuring consistent behaviour across modules.
 
 ## Technology Stack
 The solution is intentionally lightweight while maintaining a clean separation of concerns:
