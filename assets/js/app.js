@@ -315,12 +315,21 @@ function renderCalendar(calendarEl, year, month, events, canManage) {
 }
 
 function renderUpcoming(container, events) {
+    const now = new Date();
     const upcoming = events
         .map(function (event) {
-            return Object.assign({}, event, { startDate: new Date(event.start) });
+            const start = event.start ? new Date(event.start) : null;
+            return Object.assign({}, event, { startDate: start });
         })
         .filter(function (event) {
-            return event.status !== 'completed' && event.status !== 'cancelled' && event.startDate >= new Date();
+            if (!event.startDate || Number.isNaN(event.startDate.getTime())) {
+                return false;
+            }
+            const status = normalizeStatus(event.status);
+            if (status === 'completed' || status === 'cancelled') {
+                return false;
+            }
+            return event.startDate >= now;
         })
         .sort(function (a, b) { return a.startDate - b.startDate; })
         .slice(0, 8);
@@ -341,8 +350,10 @@ function renderUpcoming(container, events) {
             details.push(event.lesson_topic);
         }
         const detailText = details.length ? ' - ' + details.join(' | ') : '';
-        const statusLabel = formatStatusLabel(event.status);
-        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(event.status) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
+        const status = normalizeStatus(event.status);
+        const statusLabel = formatStatusLabel(status);
+        const statusClass = status || 'scheduled';
+        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(statusClass) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
         return '<li class=\"schedule-upcoming-item\"><div class=\"schedule-upcoming-text\"><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(dateText + ' ' + timeText + detailText) + '</span>' + statusBadge + '</div></li>';
     }).join('');
 }
@@ -350,9 +361,15 @@ function renderUpcoming(container, events) {
 function renderCompleted(container, events) {
     const completed = events
         .map(function (event) {
-            return Object.assign({}, event, { startDate: new Date(event.start) });
+            const start = event.start ? new Date(event.start) : null;
+            return Object.assign({}, event, { startDate: start });
         })
-        .filter(function (event) { return event.status === 'completed'; })
+        .filter(function (event) {
+            if (!event.startDate || Number.isNaN(event.startDate.getTime())) {
+                return false;
+            }
+            return normalizeStatus(event.status) === 'completed';
+        })
         .sort(function (a, b) { return b.startDate - a.startDate; })
         .slice(0, 8);
 
@@ -372,10 +389,16 @@ function renderCompleted(container, events) {
             details.push(event.lesson_topic);
         }
         const detailText = details.length ? ' - ' + details.join(' | ') : '';
-        const statusLabel = formatStatusLabel(event.status);
-        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(event.status) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
+        const status = normalizeStatus(event.status);
+        const statusLabel = formatStatusLabel(status);
+        const statusClass = status || 'completed';
+        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(statusClass) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
         return '<li class=\"schedule-completed-item\"><div class=\"schedule-upcoming-text\"><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(dateText + ' ' + timeText + detailText) + '</span>' + statusBadge + '</div></li>';
     }).join('');
+}
+
+function normalizeStatus(value) {
+    return String(value || '').toLowerCase().trim();
 }
 
 function formatStatusLabel(value) {
