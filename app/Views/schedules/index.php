@@ -53,6 +53,8 @@ $statusEndpoint = route('apischedules', 'updateStatus');
         <aside class="schedule-sidebar">
             <h2>Upcoming Lessons</h2>
             <ul id="schedule-upcoming" class="schedule-upcoming-list"></ul>
+            <h2>Recently Completed</h2>
+            <ul id="schedule-completed" class="schedule-upcoming-list"></ul>
         </aside>
     </div>
 </section>

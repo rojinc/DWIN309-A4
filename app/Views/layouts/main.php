@@ -152,10 +152,10 @@ $navItems = [
 </main>
 <footer class="app-footer">
     <div>
-        <strong>Group Members</strong>: Alice Chen (SID: KIA202301) - Backend &amp; Data Layer, David Singh (SID: KIA202302) - Frontend &amp; UX, Priya Patel (SID: KIA202303) - QA &amp; Documentation.
+        <strong>Group Members</strong>: Roshan Bahadur Bhandari Chhetri (SID: K240227) - Backend &amp; Data Layer, Petrick Pun Magar (SID: K240465) - Frontend &amp; UX, Shalik Ram Dhakal (SID: K240466) - QA &amp; Documentation.
     </div>
     <div>
-        � <?= date('Y'); ?> Origin Driving School. Built for the DWIN309 Final Assessment, Kent Institute Australia.
+        © <?= date('Y'); ?> Origin Driving School. Built for the DWIN309 Final Assessment, Kent Institute Australia.
     </div>
 </footer>
 <script src="<?= asset('js/app.js'); ?>"></script>

@@ -89,6 +89,7 @@ function initScheduleCalendar() {
 
     const calendarEl = document.getElementById('schedule-calendar');
     const upcomingEl = document.getElementById('schedule-upcoming');
+    const completedEl = document.getElementById('schedule-completed');
     const navButtons = container.querySelectorAll('.schedule-nav');
     const canManage = container.dataset.canManage === '1';
     let csrfToken = container.dataset.csrf || '';
@@ -129,7 +130,8 @@ function initScheduleCalendar() {
             }
         }
     };
-if (canManage) {
+
+    if (canManage) {
         modal = document.getElementById('schedule-modal');
         modalClose = document.getElementById('schedule-modal-close');
         modalCancel = document.getElementById('schedule-modal-cancel');
@@ -202,7 +204,23 @@ if (canManage) {
             }
 
             try {
-                const response = await fetch(createEndpoint, {                    method: 'POST',                    headers: {                        'Content-Type': 'application/json',                        'X-CSRF-TOKEN': csrfToken                    },                    body: JSON.stringify(payload)                });                const json = await response.json();                if (json && json.csrf_token) {                    updateCsrfToken(json.csrf_token);                }                if (!response.ok) {                    showFormMessage(json.error || 'Unable to create schedule.', true);                    return;                }                showFormMessage(json.message || 'Schedule created.', false);
+                const response = await fetch(createEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await response.json();
+                if (json && json.csrf_token) {
+                    updateCsrfToken(json.csrf_token);
+                }
+                if (!response.ok) {
+                    showFormMessage(json.error || 'Unable to create schedule.', true);
+                    return;
+                }
+                showFormMessage(json.message || 'Schedule created.', false);
                 loadCalendar(currentYear, currentMonth);
                 setTimeout(function () {
                     closeModal();
@@ -210,6 +228,7 @@ if (canManage) {
             } catch (error) {
                 showFormMessage('Unexpected error. Please try again.', true);
             }
+
         });
 
         function showFormMessage(message, isError) {
@@ -275,7 +294,7 @@ function renderCalendar(calendarEl, year, month, events, canManage) {
                 const isToday = today.getFullYear() === year && today.getMonth() + 1 === month && today.getDate() === day;
                 const dayEvents = groupedEvents.get(dateKey) || [];
                 const eventItems = dayEvents.map(function (event) {
-                    return '<li>' + escapeHtml(formatTimeRange(event.start, event.end)) + ' � ' + escapeHtml(event.student) + '</li>';
+                    return '<li>' + escapeHtml(formatTimeRange(event.start, event.end)) + ' - ' + escapeHtml(event.student) + '</li>';
                 }).join('');
                 const manageClass = canManage ? ' calendar-cell-manage' : '';
                 const manageData = canManage ? ' data-date="' + escapeAttr(dateKey) + '"' : '';
@@ -364,7 +383,9 @@ function formatStatusLabel(value) {
         return '';
     }
     return value.replace(/_/g, ' ').replace(/\b\w/g, function (letter) { return letter.toUpperCase(); });
-}\r\nfunction groupEventsByDate(events) {
+}
+
+function groupEventsByDate(events) {
     const map = new Map();
     events.forEach(function (event) {
         const date = event.start.split('T')[0];
