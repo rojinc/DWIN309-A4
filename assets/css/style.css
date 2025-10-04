@@ -1159,7 +1159,7 @@ a:focus-visible {
     color: var(--text-muted);
 }
 
-/* Enrollment Wizard */
+/* Enrollment Form */
 .lead-text {
     font-size: 1.1875rem;
     color: var(--text);
@@ -1167,189 +1167,164 @@ a:focus-visible {
     line-height: 1.6;
 }
 
-.enrollment-intro {
-    margin-bottom: var(--space-xl);
-}
-
-.enrollment-steps {
-    margin: var(--space-md) 0 0;
-    padding-left: var(--space-xl);
-    color: var(--text-muted);
-    line-height: 1.7;
-}
-
-.enrollment-steps li {
-    margin-bottom: var(--space-xs);
-}
-
-.enrollment-wizard {
+.enrollment-request {
     display: flex;
     flex-direction: column;
     gap: var(--space-xl);
 }
 
-.wizard-progress {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm);
-}
-
-.wizard-progress-step {
-    flex: 1;
-    min-width: 150px;
-    padding: var(--space-md) var(--space-lg);
-    border-radius: var(--radius-full);
-    border: 2px solid var(--border);
-    background: var(--background-subtle);
-    color: var(--text-muted);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-base);
-    text-align: center;
-}
-
-.wizard-progress-step.is-active {
-    background: var(--primary);
-    color: #ffffff;
-    border-color: var(--primary);
-    transform: scale(1.02);
-    box-shadow: var(--shadow);
-}
-
-.wizard-progress-step.is-complete {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: rgba(37, 99, 235, 0.08);
-}
-
-.wizard-progress-step:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
-}
-
-.wizard-panel {
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
+.enrollment-intro {
+    position: relative;
     padding: var(--space-xl);
-    background: var(--surface);
-}
-
-.wizard-panel:not(.is-active) {
-    display: none;
-}
-
-.wizard-panel h2 {
-    margin-top: 0;
-    margin-bottom: var(--space-sm);
-}
-
-.wizard-panel .muted {
-    margin-top: 0;
-    margin-bottom: var(--space-lg);
-    color: var(--text-muted);
-}
-
-.wizard-controls {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-md);
-    margin-top: var(--space-xl);
-}
-
-.wizard-controls .wizard-prev {
-    margin-right: auto;
-}
-
-/* Calendar Picker */
-.calendar-picker {
-    border: 2px dashed var(--border-medium);
-    border-radius: var(--radius-lg);
-    padding: var(--space-lg);
-    background: var(--background-subtle);
-}
-
-.calendar-picker-head {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: var(--space-md);
-}
-
-.calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: var(--space-sm);
-}
-
-.calendar-chip {
-    padding: var(--space-sm) var(--space-md);
-    border-radius: var(--radius-full);
-    border: 1.5px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-base);
-    text-align: center;
-}
-
-.calendar-chip:hover {
-    border-color: var(--primary);
-    transform: translateY(-1px);
-}
-
-.calendar-chip.is-selected {
-    background: var(--primary);
-    color: #ffffff;
-    border-color: var(--primary);
+    border-radius: var(--radius-xl);
+    border: 1px solid rgba(37, 99, 235, 0.18);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.04));
     box-shadow: var(--shadow-sm);
+    overflow: hidden;
 }
 
-/* Course Summary */
-.course-summary {
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    background: var(--background-subtle);
-    padding: var(--space-lg);
+.enrollment-intro::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.35), transparent 55%);
+    opacity: 0.7;
+    pointer-events: none;
 }
 
-.course-summary h3 {
+.enrollment-intro h1 {
     margin: 0 0 var(--space-sm);
 }
 
-.course-summary p {
-    margin: 0 0 var(--space-md);
+.enrollment-intro .lead-text {
+    margin-bottom: 0;
+    max-width: 48ch;
+}
+
+.enrollment-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+}
+
+.form-section {
+    border: none;
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl);
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+}
+
+.form-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: var(--space-xl);
+    width: 72px;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--primary);
+    opacity: 0.4;
+}
+
+.form-section legend {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 1.25rem;
+    font-weight: 700;
     color: var(--text);
-}
-
-.course-stats {
-    list-style: none;
+    margin-bottom: var(--space-md);
     padding: 0;
-    margin: 0;
-    display: grid;
-    gap: var(--space-xs);
 }
 
-.course-stats li {
-    font-size: 0.9375rem;
+.form-section .form-grid label span {
+    font-size: 0.875rem;
+    font-weight: 600;
     color: var(--text-muted);
-    line-height: 1.6;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: var(--space-xs);
 }
 
-/* Consent */
-.consent {
+.enrollment-form .form-grid input,
+.enrollment-form .form-grid select,
+.enrollment-form .form-grid textarea {
+    background: #ffffff;
+    transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.enrollment-form .form-grid input::placeholder,
+.enrollment-form .form-grid textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.enrollment-form textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+.enrollment-form .consent {
     display: flex;
     align-items: flex-start;
     gap: var(--space-md);
-    font-size: 0.9375rem;
-    color: var(--text-muted);
-    line-height: 1.6;
+    padding: var(--space-md);
+    border-radius: var(--radius-lg);
+    background: rgba(37, 99, 235, 0.06);
+    border: 1px solid rgba(37, 99, 235, 0.18);
+    color: var(--text);
 }
 
-.consent input {
-    margin-top: 0.375rem;
+.enrollment-form .consent input {
+    margin-top: 0.4rem;
     cursor: pointer;
+}
+
+.enrollment-form .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: var(--space-sm);
+}
+
+.enrollment-form .form-actions .button {
+    min-width: 220px;
+    font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+    .enrollment-intro {
+        padding: var(--space-lg);
+    }
+
+    .form-section {
+        padding: var(--space-lg);
+    }
+
+    .form-section::before {
+        left: var(--space-lg);
+        width: 56px;
+    }
+}
+
+@media (max-width: 640px) {
+    .enrollment-form .form-actions {
+        justify-content: stretch;
+    }
+
+    .enrollment-form .form-actions .button {
+        width: 100%;
+    }
+
+    .enrollment-form .consent {
+        flex-direction: column;
+    }
+
+    .enrollment-form .consent input {
+        margin-top: 0;
+    }
 }
 
 /* Utilities */

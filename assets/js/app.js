@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     highlightActiveNav();
+    initEnrollmentWizard();
     renderRevenueChart();
     initScheduleCalendar();
     initInvoiceEditor();
@@ -23,8 +24,19 @@ function renderRevenueChart() {
         return;
     }
     const canvas = card.querySelector('canvas');
+    if (!canvas) {
+        return;
+    }
     const ctx = canvas.getContext('2d');
-    const raw = card.dataset.revenueSeries ? JSON.parse(card.dataset.revenueSeries) : [];
+    let raw = [];
+    if (card.dataset.revenueSeries) {
+        try {
+            raw = JSON.parse(card.dataset.revenueSeries);
+        } catch (error) {
+            console.error('Failed to parse revenue series', error);
+            raw = [];
+        }
+    }
     if (!raw.length) {
         ctx.font = '16px Segoe UI';
         ctx.fillStyle = '#6b7280';
@@ -424,24 +436,33 @@ function escapeAttr(value) {
         });
     };
 
-    addButton && addButton.addEventListener('click', () => {
-        const fragment = template.content.cloneNode(true);
-        const newRow = fragment.querySelector('.invoice-line');
-        linesBody.appendChild(newRow);
-        bindRow(newRow);
-        newRow.querySelector('input[name="description[]"]').focus();
-        recalcTotals();
-    });
+    if (addButton) {
+        addButton.addEventListener('click', () => {
+            const fragment = template.content.cloneNode(true);
+            const newRow = fragment.querySelector('.invoice-line');
+            linesBody.appendChild(newRow);
+            bindRow(newRow);
+            const descriptionField = newRow.querySelector('input[name="description[]"]');
+            if (descriptionField) {
+                descriptionField.focus();
+            }
+            recalcTotals();
+        });
+    }
 
     linesBody.querySelectorAll('.invoice-line').forEach(bindRow);
-    taxRateInput && taxRateInput.addEventListener('input', recalcTotals);
+    if (taxRateInput) {
+        taxRateInput.addEventListener('input', recalcTotals);
+    }
     recalcTotals();
 
     function recalcTotals() {
         let subtotal = 0;
         linesBody.querySelectorAll('.invoice-line').forEach(row => {
-            const qty = parseFloat(row.querySelector('.invoice-line-qty')?.value || '0');
-            const price = parseFloat(row.querySelector('.invoice-line-price')?.value || '0');
+            const qtyField = row.querySelector('.invoice-line-qty');
+            const qty = parseFloat((qtyField && qtyField.value) || '0');
+            const priceField = row.querySelector('.invoice-line-price');
+            const price = parseFloat((priceField && priceField.value) || '0');
             const lineTotal = qty * price;
             subtotal += lineTotal;
             const totalCell = row.querySelector('.invoice-line-total');
@@ -449,7 +470,8 @@ function escapeAttr(value) {
                 totalCell.textContent = '$' + lineTotal.toFixed(2);
             }
         });
-        const taxRate = parseFloat(taxRateInput?.value || '0');
+        const taxRateRaw = taxRateInput ? taxRateInput.value : '0';
+        const taxRate = parseFloat(taxRateRaw || '0');
         const taxAmount = subtotal * (taxRate / 100);
         const grandTotal = subtotal + taxAmount;
         if (subtotalEl) subtotalEl.textContent = '$' + subtotal.toFixed(2);
@@ -457,3 +479,210 @@ function escapeAttr(value) {
         if (totalEl) totalEl.textContent = '$' + grandTotal.toFixed(2);
     }
 }
+
+
+
+function initEnrollmentWizard() {
+    const form = document.getElementById('enrollment-wizard');
+    if (!form) {
+        return;
+    }
+
+    const panels = Array.from(form.querySelectorAll('.wizard-panel'));
+    const progressSteps = Array.from(form.querySelectorAll('.wizard-progress-step'));
+    const prevButton = form.querySelector('.wizard-prev');
+    const nextButton = form.querySelector('.wizard-next');
+    const submitButton = form.querySelector('.wizard-submit');
+    const dateInput = form.querySelector('#preferred-date');
+    const calendarGrid = form.querySelector('.calendar-grid');
+    const courseSelect = form.querySelector('#enrollment-course');
+    const summary = form.querySelector('#course-summary');
+
+    let currentIndex = 0;
+    let courses = [];
+
+    if (form.dataset.courses) {
+        try {
+            courses = JSON.parse(form.dataset.courses);
+        } catch (error) {
+            courses = [];
+            console.error('Failed to parse course payload', error);
+        }
+    }
+
+    const minDateParts = (form.dataset.minDate || '').split('-');
+    const baseDate = minDateParts.length === 3
+        ? new Date(Number(minDateParts[0]), Number(minDateParts[1]) - 1, Number(minDateParts[2]))
+        : new Date();
+    baseDate.setHours(0, 0, 0, 0);
+
+    const showStep = index => {
+        currentIndex = index;
+        panels.forEach((panel, panelIndex) => {
+            const isActive = panelIndex === index;
+            panel.classList.toggle('is-active', isActive);
+            if (isActive) {
+                panel.removeAttribute('hidden');
+            } else {
+                panel.setAttribute('hidden', 'hidden');
+            }
+        });
+        progressSteps.forEach((stepButton, stepIndex) => {
+            stepButton.classList.toggle('is-active', stepIndex === index);
+        });
+        if (prevButton) {
+            prevButton.disabled = index === 0;
+        }
+        if (nextButton) {
+            nextButton.hidden = index === panels.length - 1;
+        }
+        if (submitButton) {
+            submitButton.hidden = index !== panels.length - 1;
+        }
+    };
+
+    const validateStep = index => {
+        const activePanel = panels[index];
+        if (!activePanel) {
+            return true;
+        }
+        const controls = activePanel.querySelectorAll('input, select, textarea');
+        for (const control of controls) {
+            if (control.disabled || control.type === 'hidden') {
+                continue;
+            }
+            if (!control.reportValidity()) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (nextButton) {
+        nextButton.addEventListener('click', () => {
+            if (!validateStep(currentIndex)) {
+                return;
+            }
+            if (currentIndex < panels.length - 1) {
+                showStep(currentIndex + 1);
+            }
+        });
+    }
+
+    if (prevButton) {
+        prevButton.addEventListener('click', () => {
+            if (currentIndex > 0) {
+                showStep(currentIndex - 1);
+            }
+        });
+    }
+
+    progressSteps.forEach((stepButton, index) => {
+        stepButton.addEventListener('click', () => {
+            if (index === currentIndex) {
+                return;
+            }
+            if (index > currentIndex && !validateStep(currentIndex)) {
+                return;
+            }
+            showStep(index);
+        });
+    });
+
+    form.addEventListener('submit', event => {
+        if (form.reportValidity()) {
+            return;
+        }
+        event.preventDefault();
+        for (let index = 0; index < panels.length; index += 1) {
+            const panel = panels[index];
+            const controls = panel.querySelectorAll('input, select, textarea');
+            const invalid = Array.from(controls).some(control => !control.checkValidity());
+            if (invalid) {
+                showStep(index);
+                break;
+            }
+        }
+    });
+
+    const renderSummary = courseId => {
+        if (!summary) {
+            return;
+        }
+        summary.innerHTML = '<h3>Course snapshot</h3><p class="muted">Pick a course to see the lesson count and price breakdown.</p>';
+        const course = courses.find(item => item.id === courseId);
+        if (!course) {
+            return;
+        }
+        const description = course.description || 'No description provided.';
+        const lessonCount = Number(course.lesson_count || 0);
+        const price = Number(course.price || 0);
+        summary.innerHTML = '' +
+            '<h3>' + escapeHtml(course.title || 'Course snapshot') + '</h3>' +
+            '<p>' + escapeHtml(description) + '</p>' +
+            '<ul class="course-stats">' +
+                '<li><strong>Lessons:</strong> ' + escapeHtml(String(lessonCount)) + '</li>' +
+                '<li><strong>Price:</strong> $' + escapeHtml(price.toFixed(2)) + '</li>' +
+            '</ul>';
+    };
+
+    if (courseSelect) {
+        courseSelect.addEventListener('change', event => {
+            const courseId = Number(event.target.value || 0);
+            renderSummary(courseId);
+        });
+        renderSummary(Number(courseSelect.value || 0));
+    }
+
+    if (calendarGrid && dateInput) {
+        const updateSelection = value => {
+            calendarGrid.querySelectorAll('.calendar-chip').forEach(chip => {
+                chip.classList.toggle('is-selected', chip.dataset.date === value);
+            });
+        };
+
+        const renderCalendar = () => {
+            calendarGrid.innerHTML = '';
+            for (let offset = 0; offset < 6; offset += 1) {
+                const date = new Date(baseDate.getTime());
+                date.setDate(baseDate.getDate() + offset);
+                const iso = date.toISOString().slice(0, 10);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'calendar-chip';
+                button.dataset.date = iso;
+                button.textContent = date.toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short'
+                });
+                if (dateInput.value === iso) {
+                    button.classList.add('is-selected');
+                }
+                button.addEventListener('click', () => {
+                    dateInput.value = iso;
+                    dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    updateSelection(iso);
+                });
+                calendarGrid.appendChild(button);
+            }
+        };
+
+        dateInput.addEventListener('input', () => {
+            updateSelection(dateInput.value);
+        });
+        dateInput.addEventListener('change', () => {
+            updateSelection(dateInput.value);
+        });
+
+        renderCalendar();
+        updateSelection(dateInput.value);
+    }
+
+    showStep(0);
+}
+
+
+
+
+

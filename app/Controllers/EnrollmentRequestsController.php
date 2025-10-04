@@ -15,6 +15,8 @@ use App\Models\EnrollmentModel;
 use App\Models\InvoiceModel;
 use App\Services\NotificationService;
 use App\Services\AuditService;
+use App\Services\ReminderService;
+use App\Services\OutboundMessageService;
 
 /**
  * Manages the lifecycle for self-service enrollment requests.
@@ -31,6 +33,8 @@ class EnrollmentRequestsController extends Controller
     private InvoiceModel $invoices;
     private NotificationService $notifications;
     private AuditService $audit;
+    private ReminderService $reminders;
+    private OutboundMessageService $outbound;
 
     public function __construct()
     {
@@ -45,6 +49,8 @@ class EnrollmentRequestsController extends Controller
         $this->invoices = new InvoiceModel();
         $this->notifications = new NotificationService();
         $this->audit = new AuditService();
+        $this->reminders = new ReminderService();
+        $this->outbound = new OutboundMessageService();
     }
 
     /**
@@ -373,13 +379,15 @@ class EnrollmentRequestsController extends Controller
         $subtotal = $price;
         $tax = round($subtotal * 0.1, 2);
         $total = $subtotal + $tax;
+        $issueDate = date('Y-m-d');
+        $dueDate = date('Y-m-d', strtotime('+7 days'));
         $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad((string) $enrollmentId, 4, '0', STR_PAD_LEFT);
 
         $invoiceId = $this->invoices->create([
             'enrollment_id' => $enrollmentId,
             'invoice_number' => $invoiceNumber,
-            'issue_date' => date('Y-m-d'),
-            'due_date' => date('Y-m-d', strtotime('+7 days')),
+            'issue_date' => $issueDate,
+            'due_date' => $dueDate,
             'subtotal' => $subtotal,
             'tax_amount' => $tax,
             'total' => $total,
@@ -398,9 +406,46 @@ class EnrollmentRequestsController extends Controller
             $message = implode("\n", [
                 'Invoice ' . $invoiceNumber . ' issued for ' . ($course['title'] ?? 'course') . '.',
                 'Total: $' . number_format($total, 2),
-                'Due: ' . date('d M Y', strtotime('+7 days')),
+                'Due: ' . date('d M Y', strtotime($dueDate)),
             ]);
             $this->notifications->send($studentUserId, 'Invoice issued', $message, 'info');
+
+            $this->reminders->queue([
+                'related_type' => 'invoice',
+                'related_id' => $invoiceId,
+                'recipient_user_id' => $studentUserId,
+                'channel' => 'email',
+                'reminder_type' => 'Invoice Due',
+                'message' => 'Your invoice ' . $invoiceNumber . ' is due on ' . date('d M Y', strtotime($dueDate)) . '.',
+                'send_on' => date('Y-m-d', strtotime('+5 days')),
+                'status' => 'pending',
+            ]);
         }
+
+        $invoice = $this->invoices->find($invoiceId);
+        if ($invoice) {
+            $this->sendInvoiceIssuedEmail($invoice);
+        }
+    }
+
+    private function sendInvoiceIssuedEmail(array $invoice): void
+    {
+        $email = $invoice['student_email'] ?? '';
+        if ($email === '') {
+            return;
+        }
+        $subject = 'Invoice ' . ($invoice['invoice_number'] ?? '') . ' issued';
+        $body = "Dear " . ($invoice['student_name'] ?? 'student') . ",\n\nA new invoice has been issued.\n" . $this->buildInvoiceSummary($invoice) . "\n\nPlease contact us if you have any questions.";
+        $this->outbound->sendEmail($email, $subject, $body);
+    }
+
+    private function buildInvoiceSummary(array $invoice): string
+    {
+        return implode("\n", [
+            'Invoice number: ' . ($invoice['invoice_number'] ?? ''),
+            'Total: $' . number_format($invoice['total'] ?? 0, 2),
+            'Balance due: $' . number_format($invoice['balance_due'] ?? 0, 2),
+            'Due date: ' . date('d M Y', strtotime($invoice['due_date'] ?? date('Y-m-d'))),
+        ]);
     }
 }
