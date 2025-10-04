@@ -1,92 +1,148 @@
 # Origin Driving School Management System Architecture
 
-## Application Stack
-- **Language:** PHP 8 (no frameworks)
-- **Database:** MySQL / MariaDB (accessed via PDO)
-- **Front-end:** HTML5, vanilla JavaScript, single global CSS file (`assets/css/style.css`)
-- **Pattern:** Lightweight MVC with Router delegating to Controllers and strongly-typed Data Access Objects (DAOs)
-- **Security:** Password hashing (bcrypt), prepared statements, server-side validation, CSRF tokens, granular role-based access control.
+## 1. Architectural Goals
+- **Unify operations** across students, instructors, fleet, and finance.
+- **Optimise for shared hosting** (XAMPP) by avoiding heavy dependencies while maintaining clean separation of concerns.
+- **Support observability and compliance** with audit trails and structured logging.
+- **Remain extensible** for integrations (payments, SMS, BI) without refactoring core modules.
 
-## Directory Layout
+## 2. Application Stack
+| Layer | Technology | Rationale |
+| --- | --- | --- |
+| Language | PHP 8.x | Modern OOP support, ubiquitous hosting availability |
+| Web Server | Apache 2.4 (mod_php) | Default in XAMPP; simple rewrite routing |
+| Database | MySQL / MariaDB 10.x | ACID transactions, referential integrity, phpMyAdmin friendly |
+| Front-end | HTML5, vanilla JavaScript, CSS3 | Progressive enhancement, minimal dependencies |
+| Sessions | PHP native session handler | Sufficient for single-node deployment |
+| Auth | Bcrypt via `password_hash` | Secure password storage |
+| Logging | File-based writer under `logs/` | Lightweight yet auditable |
+| Background Jobs | Cron-triggered PHP scripts | Drives reminder dispatch, log rotation, archival |
+
+## 3. Runtime Context
 ```
-./index.php                Front controller & router
-./app/
-  bootstrap.php            Autoloader & session bootstrap
-  config.php               Environment configuration + DB credentials
-  Core/                    Base MVC components
-  Controllers/             Feature controllers (Dashboard, Students, etc.)
-  Models/                  DAO classes encapsulating queries
-  Services/                Helper services (Auth, Mailer stubs, Reporting)
-  Helpers/                 Validation, Sanitization, CSRF utilities
-  Views/                   PHP templates organised per module + shared partials
-assets/
-  css/style.css            Global stylesheet
-  js/app.js                Front-end helpers (calendar, form UX)
-docs/
-  architecture.md          This document
-  database-design.md       Normalised schema & ER notes
-  testers.md               How to use DAO CLI testers
-sql/
-  database.sql             Schema + seed data for phpMyAdmin import
-tests/
-  *_test.php               Standalone CLI scripts exercising each DAO
-uploads/
-  documents/               Stored attachments (protected via access checks)
++------------+       HTTPS        +-----------------------+       PDO        +-------------------+
+|  Browser   | <----------------> | Apache + PHP 8 (MVC)  | <-------------> | MySQL / MariaDB    |
+| (User/UI)  |                    | index.php Front Ctrl. |                 | origin_driving...  |
++------------+                    +-----------------------+                 +-------------------+
+        ^                                 |   ^
+        | Static Assets (CSS/JS)          |   | Log Files / Uploads (writable dirs)
+        +---------------------------------+   +-----------------------> `logs/`, `uploads/`
 ```
 
-## Core Modules
-1. **Authentication & RBAC** – login/logout, session management, per-role dashboards (admin, staff, instructor, student).
-2. **Dashboard** – KPIs (active students, upcoming classes, overdue invoices, fleet availability), line chart (JS) and alerts.
-3. **Students** – CRUD, search, document uploads, progress tracking, enrolments, lesson history, invoice links.
-4. **Instructors** – profiles, qualifications, availability management, feedback summaries, schedule overview.
-5. **Staff & Branches** – manage staff accounts, assign to branches, branch contact & roster vision.
-6. **Courses** – catalogue with pricing, required lessons, assigned instructors, status toggling.
-7. **Scheduling** – lesson/exam booking, conflict detection, drag-friendly calendar, reminder triggers, fleet assignment.
-8. **Invoices & Payments** – auto-create on enrolment, edit line items, apply payments, generate printable PDF-ready layout.
-9. **Reminders & Notifications** – queue reminders (email/SMS) and present in-app notifications with acknowledgement tracking.
-10. **Communications** – send broadcast or targeted messages, retain delivery history.
-11. **Fleet Management** – vehicle registry, service tracking, lesson allocation.
-12. **Reporting & Analytics** – student progress, instructor KPIs, financial snapshots exportable as CSV.
+## 4. Layered Architecture
+```
+Presentation Layer (Views)
+    â†‘ render()
+Controller Layer (App\Controllers\*)
+    â†‘ orchestrate
+Service Layer (App\Services\*)
+    â†‘ collaborate
+Data Access Layer (App\Models\*) â†” Database (MySQL)
+    â†‘ utilities
+Infrastructure Layer (App\Core, Helpers, bootstrap)
+```
+- **Controllers** enforce RBAC, orchestrate validation, manage transactions, and prepare data for views.
+- **Services** encapsulate cross-cutting logic (authentication, reminders, notifications, audit logging, outbound messaging).
+- **Models/DAOs** wrap SQL access with prepared statements, encapsulating entity-specific queries.
+- **Views** are PHP templates, largely logic-free, relying on sanitized data passed in by controllers.
+- **Helpers & Core** provide reusable utilities (CSRF, validation, routing, configuration, database connections).
 
-## Database Overview
-All tables use InnoDB, UTF8MB4, proper indexing, created via `sql/database.sql`.
+## 5. Module Catalogue
+| Module | Key Controllers | Primary Models | Supporting Services | Highlights |
+| --- | --- | --- | --- | --- |
+| Authentication | `AuthController` | `UserModel` (via `AuthService`) | `AuthService` | Login, logout, session management, CSRF-protected forms. |
+| Dashboard | `DashboardController` | `ReportModel`, `ScheduleModel`, `InvoiceModel`, `NotificationModel`, `InstructorModel`, `StudentModel`, `EnrollmentRequestModel` | `ReminderService` | KPI cards, charts, role-specific insights, due reminder processing. |
+| Students | `StudentsController` | `StudentModel`, `UserModel`, `EnrollmentModel`, `CourseModel`, `InvoiceModel`, `DocumentModel`, `ScheduleModel`, `InstructorModel`, `NoteModel`, `BranchModel` | `AuditService`, `NotificationService`, `ReminderService`, `OutboundMessageService` | Student CRM, enrolment workflows, document handling, messaging. |
+| Instructors | `InstructorsController` | `InstructorModel`, `UserModel`, `BranchModel`, `ScheduleModel` | `AuditService` | Instructor onboarding, profile management, schedule overview. |
+| Staff & Branches | `StaffController`, `BranchesController` | `StaffModel`, `BranchModel`, `UserModel` | `AuditService` | Staff provisioning, branch contact management, RBAC alignment. |
+| Courses | `CoursesController` | `CourseModel`, `InstructorModel` | `AuditService` | Course catalogue CRUD, instructor allocations, pricing. |
+| Enrolment Requests | `EnrollmentRequestsController` | `EnrollmentRequestModel`, `StudentModel`, `CourseModel`, `InstructorModel` | `NotificationService`, `OutboundMessageService`, `AuditService` | Intake pipeline, approvals, conversion to enrolments. |
+| Scheduling | `SchedulesController`, `ApischedulesController` | `ScheduleModel`, `EnrollmentModel`, `InstructorModel`, `VehicleModel`, `BranchModel`, `StudentModel`, `CourseModel` | `ReminderService`, `AuditService` | Calendar, conflict detection, lesson booking, reminder queueing. |
+| Fleet | `FleetController` | `VehicleModel`, `ScheduleModel` | `AuditService`, `ReminderService` (for maintenance reminders) | Vehicle registry, maintenance tracking, utilisation reports. |
+| Finance | `InvoicesController`, `PaymentsController`, `StudentinvoicesController` | `InvoiceModel`, `PaymentModel`, `EnrollmentModel`, `StudentModel` | `AuditService`, `NotificationService`, `OutboundMessageService` | Invoice lifecycle, payment capture, overdue alerts, printable invoices. |
+| Communications | `CommunicationsController`, `NotificationsController`, `RemindersController` | `CommunicationModel`, `NotificationModel`, `ReminderModel`, `UserModel` | `OutboundMessageService`, `NotificationService`, `ReminderService`, `AuditService` | Broadcast messaging, in-app notifications, reminder queue administration. |
+| Documents | `DocumentsController` | `DocumentModel`, `StudentModel`, `InstructorModel`, `ScheduleModel` | `AuditService` | Secure download streaming, permission checks, audit logging. |
+| Reporting | `ReportsController` | `ReportModel`, `StudentModel`, `InstructorModel`, `ScheduleModel`, `InvoiceModel` | `AuditService` (for export logging) | Analytical dashboards, CSV exports, retention metrics. |
 
-- `users` – core profile & credentials (role, branch, status).
-- `students`, `instructors`, `staff_profiles` – role-specific extensions.
-- `branches`, `courses`, `course_instructor`, `enrollments` – academic structure.
-- `vehicles`, `vehicle_service_logs` – fleet.
-- `schedules` – lessons/exams; references enrollments, instructors, vehicles.
-- `schedule_attendance` – actual attendance logs and feedback.
-- `invoices`, `invoice_items`, `payments` – billing.
-- `reminders`, `notifications` – messaging pipeline.
-- `communications`, `communication_recipients` – mass comms history.
-- `documents`, `notes` – attachments & qualitative tracking.
-- `audit_trail` – action logging for compliance.
+## 6. Request Lifecycle
+1. **Bootstrap** (`app/bootstrap.php`) loads configuration, registers autoloader, starts session, and initialises the global `AuthService`.
+2. **Routing** occurs in `index.php`, mapping `?page` to controller class (`{Page}Controller`) and `action` to `{action}Action` method.
+3. **Authentication Guard** ensures session validity; unauthenticated users redirected to `auth/login`.
+4. **Authorisation** via `Controller::requireRole()` to enforce RBAC before executing controller logic.
+5. **Input Normalisation** uses helper functions (`post()`, `get()`) plus `Validation::make()` to sanitise and validate payloads.
+6. **Business Logic** orchestrated by controllers, often leveraging services and wrapping multi-DAO mutations in PDO transactions.
+7. **Persistence** executed through models with prepared statements and explicit transactions when necessary.
+8. **View Rendering** delegates to PHP templates with escaped variables, flash messaging, and CSRF tokens embedded.
+9. **Response** delivered as HTML or JSON (for AJAX endpoints in scheduling module).
 
-Refer to `docs/database-design.md` for column-level specification and relationships.
+## 7. Cross-Cutting Concerns
+- **Authentication:** `AuthService` manages login, logout, password verification, and session hydration.
+- **Audit Logging:** `AuditService` records immutable events to `audit_trail` for compliance.
+- **Notifications:** `NotificationService` persists in-app alerts; `ReminderService` schedules future reminders and processes due jobs.
+- **Outbound Messaging:** `OutboundMessageService` encapsulates future integration with SMTP/SMS while currently logging payloads.
+- **Validation & CSRF:** `Validation` helper ensures server-side rules; `Csrf` helper generates per-intent tokens stored in session.
+- **Error Handling:** Controllers catch domain exceptions, roll back transactions, and flash contextual error messages.
 
-## Routing Strategy
-`index.php` inspects `?page=` and optional `action`. Router maps to controller methods (`{Page}Controller::{action}Action`). Default route `dashboard/index` with authentication guard. Public routes: `auth/login`, `auth/logout`, `auth/register` (admin restricted).
+## 8. Deployment Topology
+```
++----------------------------+
+| Single Web Server (LAMP)   |
+| - Apache + PHP 8           |
+| - Source code (git clone)  |
+| - Writable: logs/, uploads/|
++--------------+-------------+
+               |
+               | PDO over TCP/IP
+               v
++----------------------------+
+| Managed MySQL/MariaDB      |
+| - origin_driving_school DB |
+| - Scheduled backups        |
++----------------------------+
+```
+Future scaling options include hosting MySQL separately, offloading static assets to CDN, and introducing a worker queue for reminders.
 
-## Security Highlights
-- Password hashing via `password_hash` and `password_verify`.
-- CSRF tokens stored in session and embedded in all POST forms.
-- Input validation service returning sanitized payloads & errors.
-- Upload sanitisation (whitelist file types, size limits, unique filenames).
-- Strict access checks before data mutations, per-role permission matrix.
-- Output escaped via `htmlspecialchars` to prevent XSS.
+## 9. Front-end Architecture
+- **CSS:** Single stylesheet `assets/css/style.css` segmented into layout, components, utilities, and responsive tweaks.
+- **JavaScript:** `assets/js/app.js` handles UI enhancements (calendar rendering, modal toggles, AJAX helpers).
+- **Templates:** Views under `app/Views/` use shared partials (navigation, footer, flash) and maintain minimal inline logic.
+- **Accessibility:** Semantic HTML5 elements, labelled controls, keyboard navigation, and focus management.
 
-## Testing Approach
-- Each DAO has dedicated CLI tester in `/tests` using sample dataset.
-- Business workflows validated via scenario scripts (e.g., `tests/schedule_workflow_test.php`).
-- JavaScript utilities covered with basic browser console instructions.
+## 10. Security Architecture
+- **Password Security:** Bcrypt hashing with per-user salts; password reset tokens stored securely.
+- **Session Protection:** HTTP-only cookies, session regeneration upon login.
+- **RBAC Enforcement:** Fine-grained checks preceding each mutating action; students limited to personal data.
+- **Input Safeguards:** Validation, sanitisation, `htmlspecialchars` in views, file upload whitelists, and size limits.
+- **Transport Security:** Recommend TLS termination at Apache; enforce `https` links in production configuration.
+- **Audit Trail:** Records user id, action, entity type/id, payload snapshot (JSON), timestamp; no delete/update operations on audit rows.
 
-## Performance Considerations
-- Lazy loading lists with pagination.
-- Indexed queries and prepared statements only.
-- Caching of configuration metadata (courses, branches) in session for quick reuse.
+## 11. Performance & Scalability
+- Pagination for heavy lists (students, invoices, schedules).
+- Indexed columns for frequent filters (`schedules.instructor_id`, `invoices.status`, `reminders.status`, etc.).
+- Caching of static metadata (branches, courses) in session to reduce repeated queries.
+- Potential enhancements: HTTP caching headers, query result caching, asynchronous reminder processor.
 
-## Deployment Notes
-- Designed for XAMPP on Windows: drop into `htdocs`, import `sql/database.sql`, adjust credentials in `app/config.php` if necessary.
-- Document root exposes `index.php`; all assets referenced relatively (`./assets/...`).
-- Writable directories (`uploads/documents`, `logs`) must have appropriate permissions.
+## 12. Extensibility Strategy
+- **Service Abstraction:** Services expose narrow interfaces; replacing email/SMS implementation is isolated to service class.
+- **Modular Controllers:** Each bounded context has dedicated controller + view folder, easing feature additions.
+- **Config-Driven:** `app/config.php` centralises environment toggles, integration credentials, feature flags.
+- **Testing Hooks:** CLI scripts in `/tests` cover DAOs; easily migrate to PHPUnit by wrapping them into suites.
+
+## 13. Deployment Pipeline
+1. Develop locally; run CLI DAO tests (`php tests/*_test.php`).
+2. Optional CI executes syntax checks (`php -l`), static analysis, and DAO scripts.
+3. Deploy via rsync/SFTP to Apache host; ensure `logs/` and `uploads/` permissions.
+4. Run SQL migrations or import updates via `sql/` scripts.
+5. Perform smoke test: login as each role, verify dashboard, schedule creation, invoice issuance.
+
+## 14. Observability & Recovery
+- **Logging:** PHP error log + application log; configure log rotation (weekly or >10MB).
+- **Monitoring:** MySQL slow query log, cron success logs, uptime checks (UptimeRobot/Netdata).
+- **Backups:** Nightly `mysqldump`; incremental file sync for `uploads/`. Documented recovery steps in [`operations-and-maintenance.md`](operations-and-maintenance.md).
+- **Incident Response:** Severity matrix, escalation contacts, rollback instructions detailed in operations runbook.
+
+## 15. Reference Documents
+- [System Overview](system-overview.md) â€” personas, business context, feature walkthroughs.
+- [Database Design](database-design.md) â€” entity catalogue, crow's foot ERD, indexing, retention.
+- [Diagrams](diagrams.md) â€” comprehensive UML/use-case representations.
+- [Operations & Maintenance](operations-and-maintenance.md) â€” runbooks for deployment, monitoring, backups.
