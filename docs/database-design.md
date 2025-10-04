@@ -9,47 +9,59 @@ The Origin Driving School Management System persists data in a normalised MySQL 
 - Timestamps stored in UTC as `DATETIME`.
 - Enumerations implemented with `ENUM` and mirrored in validation helpers.
 
-## 3. Crow's Foot ER Diagram
+## 3. Crow's Foot ER Diagrams
+To improve readability the schema is split into focused diagrams, each highlighting a logical slice of the domain.
+
+### 3.1 Identity & Academic Structure
 ```mermaid
 %% Mermaid ER diagram approximating crow's foot cardinalities
 erDiagram
+    BRANCHES ||--o{ USERS : hosts
     USERS ||--o{ STUDENTS : extends
     USERS ||--o{ INSTRUCTORS : extends
     USERS ||--o{ STAFF_PROFILES : extends
-    USERS ||--o{ NOTIFICATIONS : receives
-    USERS ||--o{ COMMUNICATION_RECIPIENTS : receives
     USERS ||--o{ DOCUMENTS : uploads
     USERS ||--o{ NOTES : authors
-    USERS ||--o{ AUDIT_TRAIL : performs
-    USERS ||--o{ PAYMENTS : records
-
-    BRANCHES ||--o{ USERS : hosts
-    BRANCHES ||--o{ VEHICLES : owns
-    BRANCHES ||--o{ SCHEDULES : location
-
-    COURSES ||--o{ ENROLLMENTS : includes
+    STUDENTS ||--o{ NOTES : subject
+    INSTRUCTORS ||--o{ NOTES : subject
+    STAFF_PROFILES ||--o{ NOTES : subject
     STUDENTS ||--o{ ENROLLMENTS : participates
-    INSTRUCTORS ||--o{ COURSE_INSTRUCTOR : teaches
+    COURSES ||--o{ ENROLLMENTS : includes
     COURSES ||--o{ COURSE_INSTRUCTOR : allocates
-
-    ENROLLMENTS ||--o{ SCHEDULES : books
-    ENROLLMENTS ||--o{ INVOICES : billed
-    ENROLLMENTS ||--o{ REMINDERS : triggers
-    ENROLLMENTS ||--o{ NOTES : reference
-
-    INSTRUCTORS ||--o{ SCHEDULES : delivers
-    INSTRUCTORS ||--o{ INSTRUCTOR_UNAVAILABILITY : blocks
-    VEHICLES ||--o{ SCHEDULES : assigned
-
-    INVOICES ||--o{ INVOICE_ITEMS : contains
-    INVOICES ||--o{ PAYMENTS : settles
-
-    REMINDERS ||--o{ NOTIFICATIONS : materialise
-
-    COMMUNICATIONS ||--o{ COMMUNICATION_RECIPIENTS : targets
+    INSTRUCTORS ||--o{ COURSE_INSTRUCTOR : teaches
+    BRANCHES ||--o{ VEHICLES : owns
 ```
 
-> **Note:** Mermaid's `erDiagram` syntax uses crow's foot-style connectors to communicate cardinalities (|| for one, } for many). The relationships above align with the data dictionary described below.
+### 3.2 Scheduling & Operations
+```mermaid
+%% Focused view on scheduling entities
+erDiagram
+    ENROLLMENTS ||--o{ SCHEDULES : books
+    INSTRUCTORS ||--o{ SCHEDULES : delivers
+    VEHICLES ||--o{ SCHEDULES : assigned
+    BRANCHES ||--o{ SCHEDULES : hosts
+    SCHEDULES ||--o{ REMINDERS : triggers
+    INSTRUCTORS ||--o{ INSTRUCTOR_UNAVAILABILITY : blocks
+    REMINDERS ||--o{ NOTIFICATIONS : materialise
+```
+
+### 3.3 Finance, Communications & Compliance
+```mermaid
+%% Focused view on invoicing, payments, and messaging
+erDiagram
+    ENROLLMENTS ||--o{ INVOICES : billed
+    INVOICES ||--o{ INVOICE_ITEMS : contains
+    INVOICES ||--o{ PAYMENTS : settles
+    USERS ||--o{ PAYMENTS : records
+    INVOICES ||--o{ REMINDERS : triggers
+    SCHEDULES ||--o{ REMINDERS : triggers
+    COMMUNICATIONS ||--o{ COMMUNICATION_RECIPIENTS : targets
+    USERS ||--o{ COMMUNICATION_RECIPIENTS : receives
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ AUDIT_TRAIL : performs
+```
+
+> **Note:** Mermaid's `erDiagram` syntax uses crow's foot-style connectors to communicate cardinalities (|| for one, } for many). Review each subsection alongside the entity catalogue below for the full schema picture.
 
 ## 4. Entity Catalogue
 
