@@ -25,8 +25,8 @@
     <?= $content; ?>
 </main>
 <footer class="public-footer" id="contact">
-    <p>Origin Driving School � Kent Institute Australia � DWIN309 Final Assessment Submission</p>
-    <p>Email: hello@origindrivingschool.com.au � Phone: (03) 8000 0000</p>
+    <p>Origin Driving School &ndash; Kent Institute Australia &ndash; DWIN309 Final Assessment Submission</p>
+    <p>Email: hello@origindrivingschool.com.au &ndash; Phone: (03) 8000 0000</p>
 </footer>
     <script src="<?= asset('js/app.js'); ?>"></script>
 </body>

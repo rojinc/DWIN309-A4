@@ -238,6 +238,47 @@ class StudentsController extends Controller
             }
         }
         $schedules = $this->schedules->forStudent($id);
+        $nowTimestamp = time();
+        $upcomingSchedules = [];
+        $completedSchedules = [];
+
+        foreach ($schedules as $schedule) {
+            $status = strtolower(trim((string) ($schedule['status'] ?? '')));
+            $startTimestamp = strtotime(($schedule['scheduled_date'] ?? '') . ' ' . ($schedule['start_time'] ?? '00:00:00'));
+
+            if ($status === 'completed') {
+                $schedule['_start_ts'] = $startTimestamp === false ? null : $startTimestamp;
+                $completedSchedules[] = $schedule;
+                continue;
+            }
+
+            if (in_array($status, ['cancelled', 'not_completed'], true)) {
+                continue;
+            }
+
+            if ($startTimestamp !== false && $startTimestamp >= $nowTimestamp) {
+                $schedule['_start_ts'] = $startTimestamp;
+                $upcomingSchedules[] = $schedule;
+            }
+        }
+
+        usort($upcomingSchedules, static function (array $first, array $second): int {
+            return ($first['_start_ts'] ?? 0) <=> ($second['_start_ts'] ?? 0);
+        });
+
+        usort($completedSchedules, static function (array $first, array $second): int {
+            return ($second['_start_ts'] ?? 0) <=> ($first['_start_ts'] ?? 0);
+        });
+
+        $upcomingSchedules = array_map(static function (array $schedule): array {
+            unset($schedule['_start_ts']);
+            return $schedule;
+        }, $upcomingSchedules);
+
+        $completedSchedules = array_map(static function (array $schedule): array {
+            unset($schedule['_start_ts']);
+            return $schedule;
+        }, $completedSchedules);
         $documents = $this->documents->forUser((int) $student['user_id']);
         $notes = $this->notes->for('student', $id);
 
@@ -262,6 +303,8 @@ class StudentsController extends Controller
             'enrollments' => $enrollments,
             'invoices' => $invoices,
             'schedules' => $schedules,
+            'upcomingSchedules' => $upcomingSchedules,
+            'completedSchedules' => $completedSchedules,
             'documents' => $documents,
             'notes' => $notes,
             'csrfToken' => Csrf::token('student_note_' . $id),

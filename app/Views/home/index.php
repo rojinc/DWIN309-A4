@@ -1,7 +1,7 @@
 ﻿<section class="hero">
     <div class="hero-text">
         <h1>Empowering Safer Victorian Drivers Since 2015</h1>
-        <p>Origin Driving School has transformed learner training across Melbourne�s bayside, CBD, and surrounding suburbs. Our management system streamlines scheduling, teaching, compliance, and communication for every lesson and VicRoads test.</p>
+        <p>Origin Driving School has transformed learner training across Melbourne's bayside, CBD, and surrounding suburbs. Our management system streamlines scheduling, teaching, compliance, and communication for every lesson and VicRoads test.</p>
         <div class="hero-actions">
             <a class="button" href="<?= route('enrollmentrequests', 'apply'); ?>">Enroll Now</a>
             <a class="button button-secondary" href="<?= route('auth', 'login'); ?>">Enter Management System</a>
@@ -48,18 +48,18 @@
 <section id="team" class="content-section team-grid">
     <h2>Project Delivery Team</h2>
     <div class="team-member">
-        <h3>Alice Chen</h3>
-        <p>Student ID: KIA202301</p>
+        <h3>Roshan Bahadur Bhandari Chhetri</h3>
+        <p>Student ID: K240227</p>
         <p>Responsibilities: Backend architecture, data modelling, secure authentication.</p>
     </div>
     <div class="team-member">
-        <h3>David Singh</h3>
-        <p>Student ID: KIA202302</p>
+        <h3>Petrick Pun Magar</h3>
+        <p>Student ID: K240465</p>
         <p>Responsibilities: UI/UX design, accessibility, client-side validation.</p>
     </div>
     <div class="team-member">
-        <h3>Priya Patel</h3>
-        <p>Student ID: KIA202303</p>
+        <h3>Shalik Ram Dhakal</h3>
+        <p>Student ID: K240466</p>
         <p>Responsibilities: Testing frameworks, QA automation, deployment handover.</p>
     </div>
 </section>

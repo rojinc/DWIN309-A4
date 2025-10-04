@@ -1,6 +1,8 @@
 <?php
 $canUpdateProgress = $canUpdateProgress ?? false;
 $progressTokens = $progressTokens ?? [];
+$upcomingSchedules = $upcomingSchedules ?? [];
+$completedSchedules = $completedSchedules ?? [];
 ?>
 <section class="grid two-column">
     <div class="card">
@@ -96,17 +98,52 @@ $progressTokens = $progressTokens ?? [];
                     <th>Date</th>
                     <th>Time</th>
                     <th>Instructor</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
-                <?php if (empty($schedules)): ?>
-                    <tr><td colspan="3">No lessons scheduled.</td></tr>
+                <?php if (empty($upcomingSchedules)): ?>
+                    <tr><td colspan="4">No upcoming lessons scheduled.</td></tr>
                 <?php else: ?>
-                    <?php foreach ($schedules as $schedule): ?>
+                    <?php foreach ($upcomingSchedules as $schedule): ?>
                         <tr>
                             <td><?= e(date('d M Y', strtotime($schedule['scheduled_date']))); ?></td>
                             <td><?= e(substr($schedule['start_time'], 0, 5)); ?> - <?= e(substr($schedule['end_time'], 0, 5)); ?></td>
                             <td><?= e($schedule['instructor_name']); ?></td>
+                            <td><?= e(ucwords(str_replace('_', ' ', $schedule['status'] ?? 'scheduled'))); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+    <div class="card">
+        <h2>Completed Lessons</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Instructor</th>
+                    <th>Rating</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($completedSchedules)): ?>
+                    <tr><td colspan="4">No lessons completed yet.</td></tr>
+                <?php else: ?>
+                    <?php foreach ($completedSchedules as $schedule): ?>
+                        <tr>
+                            <td><?= e(date('d M Y', strtotime($schedule['scheduled_date']))); ?></td>
+                            <td><?= e(substr($schedule['start_time'], 0, 5)); ?> - <?= e(substr($schedule['end_time'], 0, 5)); ?></td>
+                            <td><?= e($schedule['instructor_name']); ?></td>
+                            <td>
+                                <?php if (!empty($schedule['student_rating'])): ?>
+                                    <?= e((string) $schedule['student_rating']); ?>/10
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>

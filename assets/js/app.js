@@ -89,6 +89,7 @@ function initScheduleCalendar() {
 
     const calendarEl = document.getElementById('schedule-calendar');
     const upcomingEl = document.getElementById('schedule-upcoming');
+    const completedEl = document.getElementById('schedule-completed');
     const navButtons = container.querySelectorAll('.schedule-nav');
     const canManage = container.dataset.canManage === '1';
     let csrfToken = container.dataset.csrf || '';
@@ -129,7 +130,8 @@ function initScheduleCalendar() {
             }
         }
     };
-if (canManage) {
+
+    if (canManage) {
         modal = document.getElementById('schedule-modal');
         modalClose = document.getElementById('schedule-modal-close');
         modalCancel = document.getElementById('schedule-modal-cancel');
@@ -202,7 +204,23 @@ if (canManage) {
             }
 
             try {
-                const response = await fetch(createEndpoint, {                    method: 'POST',                    headers: {                        'Content-Type': 'application/json',                        'X-CSRF-TOKEN': csrfToken                    },                    body: JSON.stringify(payload)                });                const json = await response.json();                if (json && json.csrf_token) {                    updateCsrfToken(json.csrf_token);                }                if (!response.ok) {                    showFormMessage(json.error || 'Unable to create schedule.', true);                    return;                }                showFormMessage(json.message || 'Schedule created.', false);
+                const response = await fetch(createEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await response.json();
+                if (json && json.csrf_token) {
+                    updateCsrfToken(json.csrf_token);
+                }
+                if (!response.ok) {
+                    showFormMessage(json.error || 'Unable to create schedule.', true);
+                    return;
+                }
+                showFormMessage(json.message || 'Schedule created.', false);
                 loadCalendar(currentYear, currentMonth);
                 setTimeout(function () {
                     closeModal();
@@ -210,6 +228,7 @@ if (canManage) {
             } catch (error) {
                 showFormMessage('Unexpected error. Please try again.', true);
             }
+
         });
 
         function showFormMessage(message, isError) {
@@ -275,7 +294,7 @@ function renderCalendar(calendarEl, year, month, events, canManage) {
                 const isToday = today.getFullYear() === year && today.getMonth() + 1 === month && today.getDate() === day;
                 const dayEvents = groupedEvents.get(dateKey) || [];
                 const eventItems = dayEvents.map(function (event) {
-                    return '<li>' + escapeHtml(formatTimeRange(event.start, event.end)) + ' � ' + escapeHtml(event.student) + '</li>';
+                    return '<li>' + escapeHtml(formatTimeRange(event.start, event.end)) + ' - ' + escapeHtml(event.student) + '</li>';
                 }).join('');
                 const manageClass = canManage ? ' calendar-cell-manage' : '';
                 const manageData = canManage ? ' data-date="' + escapeAttr(dateKey) + '"' : '';
@@ -296,12 +315,21 @@ function renderCalendar(calendarEl, year, month, events, canManage) {
 }
 
 function renderUpcoming(container, events) {
+    const now = new Date();
     const upcoming = events
         .map(function (event) {
-            return Object.assign({}, event, { startDate: new Date(event.start) });
+            const start = event.start ? new Date(event.start) : null;
+            return Object.assign({}, event, { startDate: start });
         })
         .filter(function (event) {
-            return event.status !== 'completed' && event.status !== 'cancelled' && event.startDate >= new Date();
+            if (!event.startDate || Number.isNaN(event.startDate.getTime())) {
+                return false;
+            }
+            const status = normalizeStatus(event.status);
+            if (status === 'completed' || status === 'cancelled') {
+                return false;
+            }
+            return event.startDate >= now;
         })
         .sort(function (a, b) { return a.startDate - b.startDate; })
         .slice(0, 8);
@@ -322,8 +350,10 @@ function renderUpcoming(container, events) {
             details.push(event.lesson_topic);
         }
         const detailText = details.length ? ' - ' + details.join(' | ') : '';
-        const statusLabel = formatStatusLabel(event.status);
-        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(event.status) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
+        const status = normalizeStatus(event.status);
+        const statusLabel = formatStatusLabel(status);
+        const statusClass = status || 'scheduled';
+        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(statusClass) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
         return '<li class=\"schedule-upcoming-item\"><div class=\"schedule-upcoming-text\"><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(dateText + ' ' + timeText + detailText) + '</span>' + statusBadge + '</div></li>';
     }).join('');
 }
@@ -331,9 +361,15 @@ function renderUpcoming(container, events) {
 function renderCompleted(container, events) {
     const completed = events
         .map(function (event) {
-            return Object.assign({}, event, { startDate: new Date(event.start) });
+            const start = event.start ? new Date(event.start) : null;
+            return Object.assign({}, event, { startDate: start });
         })
-        .filter(function (event) { return event.status === 'completed'; })
+        .filter(function (event) {
+            if (!event.startDate || Number.isNaN(event.startDate.getTime())) {
+                return false;
+            }
+            return normalizeStatus(event.status) === 'completed';
+        })
         .sort(function (a, b) { return b.startDate - a.startDate; })
         .slice(0, 8);
 
@@ -353,10 +389,16 @@ function renderCompleted(container, events) {
             details.push(event.lesson_topic);
         }
         const detailText = details.length ? ' - ' + details.join(' | ') : '';
-        const statusLabel = formatStatusLabel(event.status);
-        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(event.status) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
+        const status = normalizeStatus(event.status);
+        const statusLabel = formatStatusLabel(status);
+        const statusClass = status || 'completed';
+        const statusBadge = statusLabel ? '<span class=\"status-pill status-' + escapeAttr(statusClass) + '\">' + escapeHtml(statusLabel) + '</span>' : '';
         return '<li class=\"schedule-completed-item\"><div class=\"schedule-upcoming-text\"><strong>' + escapeHtml(event.student) + '</strong><span>' + escapeHtml(dateText + ' ' + timeText + detailText) + '</span>' + statusBadge + '</div></li>';
     }).join('');
+}
+
+function normalizeStatus(value) {
+    return String(value || '').toLowerCase().trim();
 }
 
 function formatStatusLabel(value) {
@@ -364,7 +406,9 @@ function formatStatusLabel(value) {
         return '';
     }
     return value.replace(/_/g, ' ').replace(/\b\w/g, function (letter) { return letter.toUpperCase(); });
-}\r\nfunction groupEventsByDate(events) {
+}
+
+function groupEventsByDate(events) {
     const map = new Map();
     events.forEach(function (event) {
         const date = event.start.split('T')[0];
