@@ -150,10 +150,10 @@ A curated overview of the repository structure:
    - Point browser to the configured host (default: `http://localhost/DWIN309-A4/index.php`).
 
 7. **Seed Accounts (from `sql/database.sql`)**
-   - Admin: `admin@origin.com` / `Password123`
-   - Staff: `operations@origin.com` / `Password123`
-   - Instructor: `amelia.ward@origin.com` / `Password123`
-   - Student: `jack.mason@student.com` / `Password123`
+   - Admin: `admin@origin.com` / `Password123!`
+   - Staff: `operations@origin.com` / `Password123!`
+   - Instructor: `amelia.ward@origin.com` / `Password123!`
+   - Student: `jack.mason@student.com` / `Password123!`
 
 ## Operational Usage
 - **Authentication:** Access `/index.php?page=auth&action=login`. Sessions leverage PHP's native session handler with HTTP-only cookies.
